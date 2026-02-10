@@ -158,6 +158,33 @@ export class StripeService {
   constructWebhookEvent(payload: string, signature: string): Stripe.Event {
     return this.verifyWebhookSignature(payload, signature);
   }
+
+  /**
+   * Retrieves an existing checkout session by ID
+   * 
+   * Used to check if a pending payment link is still valid
+   * 
+   * @param sessionId - Stripe checkout session ID
+   * @returns The checkout session or null if not found/expired
+   */
+  async getSession(sessionId: string): Promise<{ id: string; url: string | null } | null> {
+    try {
+      const session = await this.stripe.checkout.sessions.retrieve(sessionId);
+      
+      // Only return sessions that are still open (not expired or completed)
+      if (session.status === 'open') {
+        return {
+          id: session.id,
+          url: session.url,
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      // Session not found or error retrieving
+      return null;
+    }
+  }
 }
 
 // Export a singleton instance for use across the application

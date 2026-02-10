@@ -1,3 +1,18 @@
+/**
+ * @deprecated This file is deprecated. Use the new architecture instead:
+ * 
+ * - Services: services/deployment/deployment-service.ts, services/user/user-service.ts
+ * - Repositories: db/repositories/deployment-repository.ts, db/repositories/user-repository.ts
+ * 
+ * The new architecture provides:
+ * - Repository pattern for clean data access
+ * - Service layer for business logic
+ * - Better separation of concerns
+ * - Easier testing and maintenance
+ * 
+ * This file is kept for backward compatibility only.
+ */
+
 import { drizzle } from 'drizzle-orm/libsql';
 import { createClient } from '@libsql/client';
 import { eq } from 'drizzle-orm';

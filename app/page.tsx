@@ -731,6 +731,11 @@ export default function HomePage() {
         </div>
 
         <nav className="hidden md:flex items-center space-x-6 lg:space-x-8">
+          {isSignedIn && (
+            <a href="/dashboard" className="text-white/80 hover:text-white transition-colors text-sm lg:text-base font-medium">
+              Dashboard
+            </a>
+          )}
           <a href="#features" className="text-white/80 hover:text-white transition-colors text-sm lg:text-base">
             Features
           </a>
@@ -768,6 +773,11 @@ export default function HomePage() {
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-16 left-0 right-0 bg-black/95 backdrop-blur-sm border-b border-white/10 z-20">
           <nav className="flex flex-col space-y-4 px-6 py-6">
+            {isSignedIn && (
+              <a href="/dashboard" className="text-white/80 hover:text-white transition-colors font-medium">
+                Dashboard
+              </a>
+            )}
             <a href="#features" className="text-white/80 hover:text-white transition-colors">
               Features
             </a>

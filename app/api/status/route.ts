@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as v from 'valibot';
 import { StatusQuerySchema } from '@/lib/validation';
-import { getDatabaseService } from '@/lib/database';
+import { deploymentService } from '@/services/deployment/deployment-service';
 import { getTelegramBotLinkFromToken } from '@/lib/telegram';
 
 /**
@@ -90,8 +90,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Query database for deployment record
-    const databaseService = getDatabaseService();
-    const deployment = await databaseService.getDeploymentById(id);
+    const deployment = await deploymentService.getDeploymentById(id);
 
     // Handle deployment not found
     if (!deployment) {

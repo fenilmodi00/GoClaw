@@ -1,12 +1,66 @@
-# Database Setup
+# Database Architecture
 
-This directory contains the database schema, migrations, and migration scripts for SimpleClaw.
+SimpleClaw uses **Turso** (distributed SQLite) with a professional repository pattern architecture.
 
-## Database Provider
+## Architecture Overview
 
-SimpleClaw uses **Turso** (distributed SQLite) as the database provider.
+```
+┌─────────────────────────────────────────────────────────┐
+│                     API Layer                            │
+│  (app/api/checkout, app/api/webhooks, etc.)             │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│                  Service Layer                           │
+│  • DeploymentService (services/deployment/)             │
+│  • UserService (services/user/)                         │
+│  Business logic, validation, orchestration              │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│                Repository Layer                          │
+│  • DeploymentRepository (db/repositories/)              │
+│  • UserRepository (db/repositories/)                    │
+│  Data access, encryption, queries                       │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│                  Database Layer                          │
+│  Turso (SQLite) + Drizzle ORM                           │
+│  Schema: users, deployments, llmUsageLog                │
+└─────────────────────────────────────────────────────────┘
+```
 
-## Setup Instructions
+## Key Features
+
+### 1. Repository Pattern
+- Clean separation of data access from business logic
+- Centralized query logic
+- Easy to test and mock
+- Type-safe operations
+
+### 2. Service Layer
+- Business logic orchestration
+- Cross-repository operations
+- Transaction management
+- Validation and error handling
+
+### 3. Automatic Encryption
+- Sensitive fields encrypted transparently
+- AES-256-GCM encryption
+- Decryption on retrieval
+
+### 4. Payment Link Reuse
+- Detects duplicate pending deployments
+- Reuses existing Stripe sessions
+- Prevents duplicate charges
+
+### 5. User-Deployment Tracking
+- Foreign key relationships
+- User dashboard support
+- Deployment history queries
+
+## Database Setup
 
 ### 1. Install Turso CLI
 
@@ -18,75 +72,131 @@ curl -sSfL https://get.tur.so/install.sh | bash
 irm https://get.tur.so/install.ps1 | iex
 ```
 
-### 2. Create a Database
+### 2. Create Database
 
 ```bash
-# Create a new database
 turso db create simpleclaw
-
-# Show database details (get URL and auth token)
 turso db show simpleclaw
-
-# Create an auth token
 turso db tokens create simpleclaw
 ```
 
-### 3. Configure Environment Variables
-
-Copy the database URL and auth token to your `.env` file:
+### 3. Configure Environment
 
 ```env
 DATABASE_URL="libsql://simpleclaw-[your-username].turso.io"
 DATABASE_AUTH_TOKEN="eyJhbGc..."
+ENCRYPTION_KEY="<32-byte-hex-string>"
 ```
 
-### 4. Generate and Run Migrations
+Generate encryption key:
+```bash
+openssl rand -hex 32
+```
+
+### 4. Run Migrations
 
 ```bash
-# Generate migration files from schema
 bun run db:generate
-
-# Run migrations
 bun run db:migrate
 ```
 
 ## Schema
 
-The database contains a single `deployments` table that stores:
+### Users Table
+- `id` - UUID primary key
+- `clerk_user_id` - Clerk authentication ID (unique, indexed)
+- `email` - User email (unique, indexed)
+- `created_at` - Registration timestamp
+- `updated_at` - Last update timestamp
 
-- User information (email)
-- Encrypted credentials (Telegram token, Akash API key, LLM API key)
-- Deployment configuration (LLM provider)
-- Akash deployment details (deployment ID, lease ID, provider URL)
-- Status tracking (pending, deploying, active, failed)
-- Stripe payment tracking (session ID, payment intent ID)
-- Error messages
-- Timestamps (created_at, updated_at)
+### Deployments Table
+- `id` - UUID primary key
+- `user_id` - Foreign key to users (indexed)
+- `email` - User email
+- `model` - LLM model selection
+- `channel` - Communication channel (telegram/discord/whatsapp)
+- `channel_token` - Encrypted bot token
+- `channel_api_key` - Encrypted API key (optional)
+- `akash_deployment_id` - Akash deployment DSEQ
+- `akash_lease_id` - Akash lease identifier
+- `provider_url` - Deployment URL
+- `status` - Deployment status (pending/deploying/active/failed)
+- `stripe_session_id` - Stripe checkout session (indexed)
+- `stripe_payment_intent_id` - Stripe payment intent
+- `error_message` - Error details for failed deployments
+- `created_at` - Creation timestamp
+- `updated_at` - Last update timestamp
 
-## Encryption
+### LLM Usage Log Table
+- `id` - UUID primary key
+- `user_id` - Foreign key to users (indexed)
+- `deployment_id` - Foreign key to deployments (optional)
+- `tokens_used` - Token consumption count
+- `provider` - LLM provider name
+- `timestamp` - Usage timestamp (indexed)
 
-All sensitive fields (API keys and tokens) are encrypted using AES-256-GCM before storage. The encryption key must be set in the `ENCRYPTION_KEY` environment variable.
+## Usage Examples
 
-Generate an encryption key:
+### Create Deployment
+```typescript
+import { deploymentService } from '@/services/deployment/deployment-service';
 
-```bash
-# Generate a 32-byte hex string
-openssl rand -hex 32
+const deployment = await deploymentService.createDeployment({
+  userId: user.id,
+  email: user.email,
+  model: 'claude-opus-4.5',
+  channel: 'telegram',
+  channelToken: 'bot_token_here',
+  stripeSessionId: session.id,
+});
+```
+
+### Get User Deployments
+```typescript
+const deployments = await deploymentService.getUserDeployments(userId);
+```
+
+### Check for Pending Duplicate
+```typescript
+const existing = await deploymentService.findPendingDuplicate(
+  userId,
+  'claude-opus-4.5',
+  'telegram',
+  'bot_token_here'
+);
+
+if (existing) {
+  // Reuse existing payment link
+  const session = await stripeService.getSession(existing.stripeSessionId);
+}
+```
+
+### Update Deployment Status
+```typescript
+await deploymentService.updateDeploymentStatus(
+  deploymentId,
+  'active',
+  {
+    akashDeploymentId: dseq,
+    akashLeaseId: leaseId,
+    providerUrl: url,
+  }
+);
 ```
 
 ## Testing
 
-To run database tests, ensure your database is properly configured in `.env`:
-
 ```bash
 bun test __tests__/database.test.ts
+bun test __tests__/user-service.test.ts
 ```
-
-**Note**: Tests will be skipped if the database is not configured.
 
 ## Files
 
-- `schema.ts` - Drizzle ORM schema definition
-- `migrate.ts` - Migration script
-- `migrations/` - Generated SQL migration files
+- `schema.ts` - Drizzle ORM schema definitions
+- `repositories/` - Data access layer
+  - `deployment-repository.ts` - Deployment queries
+  - `user-repository.ts` - User queries
+- `migrations/` - SQL migration files
 - `README.md` - This file
+

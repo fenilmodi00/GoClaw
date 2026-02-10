@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripeService } from '@/lib/stripe';
-import { databaseService } from '@/lib/database';
+import { deploymentService } from '@/services/deployment/deployment-service';
 import { 
   generateSDL, 
   createDeployment, 
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       logger.debug('Finding deployment by session ID', { sessionId });
 
       // Find deployment by session ID
-      const deployment = await databaseService.getDeploymentByStripeSession(sessionId);
+      const deployment = await deploymentService.getDeploymentByStripeSession(sessionId);
 
       if (!deployment) {
         logger.error('Deployment not found', { sessionId });
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
 
       // Update deployment status to "deploying" (Requirement 3.6)
       logger.debug('Updating deployment status to deploying');
-      await databaseService.updateDeploymentStatus(
+      await deploymentService.updateDeploymentStatus(
         deployment.id,
         'deploying',
         {
@@ -161,7 +161,7 @@ async function processDeployment(deploymentId: string): Promise<void> {
 
     // Step 1: Retrieve deployment record with decrypted credentials (Requirement 5.1)
     logger.debug('Retrieving deployment record');
-    const deployment = await databaseService.getDeploymentById(deploymentId);
+    const deployment = await deploymentService.getDeploymentById(deploymentId);
 
     if (!deployment) {
       logger.error('Deployment not found during processing', { deploymentId });
@@ -236,7 +236,7 @@ async function processDeployment(deploymentId: string): Promise<void> {
 
     // Step 9: Update status to "active" with deployment details (Requirements 5.7, 5.8)
     logger.debug('Updating deployment status to active');
-    await databaseService.updateDeploymentStatus(
+    await deploymentService.updateDeploymentStatus(
       deploymentId,
       'active',
       {
@@ -263,7 +263,7 @@ async function processDeployment(deploymentId: string): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : 'Unknown deployment error';
     
     try {
-      await databaseService.updateDeploymentStatus(
+      await deploymentService.updateDeploymentStatus(
         deploymentId,
         'failed',
         {

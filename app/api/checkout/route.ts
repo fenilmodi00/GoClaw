@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as v from 'valibot';
 import { CheckoutSchema } from '@/lib/validation';
-import { databaseService } from '@/lib/database';
+import { deploymentService } from '@/services/deployment/deployment-service';
 import { stripeService } from '@/lib/stripe';
 import { userService } from '@/services/user/user-service';
 import { auth, clerkClient } from '@clerk/nextjs/server';
@@ -88,14 +88,40 @@ export async function POST(request: NextRequest) {
     
     if (!user) {
       logger.info('User not found in database, creating new user');
-      // Create user in our database
-      user = await userService.createUserFromClerk(
-        clerkUserId,
-        userEmail
-      );
+      user = await userService.createUserFromClerk(clerkUserId, userEmail);
       logger.info('User created', { userId: user.id });
     } else {
       logger.debug('User found', { userId: user.id });
+    }
+
+    // Check for existing pending deployment with same configuration
+    // This allows reusing payment links for identical deployments
+    logger.debug('Checking for pending duplicate deployment');
+    const existingDeployment = await deploymentService.findPendingDuplicate(
+      user.id,
+      data.model,
+      data.channel,
+      data.channelToken
+    );
+
+    if (existingDeployment) {
+      logger.info('Found existing pending deployment, reusing payment link', {
+        deploymentId: existingDeployment.id,
+        stripeSessionId: existingDeployment.stripeSessionId
+      });
+
+      // Retrieve existing Stripe session
+      const existingSession = await stripeService.getSession(existingDeployment.stripeSessionId);
+      
+      if (existingSession && existingSession.url) {
+        logger.info('Reusing existing Stripe session');
+        return NextResponse.json({
+          sessionUrl: existingSession.url,
+          deploymentId: existingDeployment.id,
+        });
+      }
+
+      logger.warn('Existing session expired or invalid, creating new one');
     }
 
     // Generate deployment ID upfront
@@ -108,7 +134,6 @@ export async function POST(request: NextRequest) {
     const cancelUrl = baseUrl;
 
     logger.debug('Creating Stripe checkout session');
-    // Create Stripe checkout session first (Requirement 7.1)
     const session = await stripeService.createCheckoutSession({
       email: userEmail,
       deploymentId: deploymentId,
@@ -118,15 +143,14 @@ export async function POST(request: NextRequest) {
     logger.info('Stripe session created', { sessionId: session.id });
 
     logger.debug('Creating deployment record');
-    // Create deployment record with status "pending" and Stripe session ID (Requirement 3.2)
-    const deployment = await databaseService.createDeployment({
-      id: deploymentId, // Use pre-generated ID
+    const deployment = await deploymentService.createDeployment({
+      id: deploymentId,
       userId: user.id,
       email: userEmail,
       model: data.model,
       channel: data.channel,
       channelToken: data.channelToken,
-      channelApiKey: undefined, // No longer accepting channelApiKey
+      channelApiKey: undefined,
       stripeSessionId: session.id,
     });
     logger.info('Deployment created', { deploymentId: deployment.id });
