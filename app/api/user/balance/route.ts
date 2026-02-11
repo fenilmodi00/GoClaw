@@ -32,21 +32,22 @@ export async function GET() {
 
                 // Find 'ai_usage' meter
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const usageMeter = meters.find((m: any) => m.name === 'ai_usage' || m.slug === 'ai_usage' || (m.meter && m.meter.name === 'ai_usage'));
+                const usageMeter = meters.find((m: any) =>
+                    m.name === 'ai_usage' ||
+                    m.slug === 'ai_usage' ||
+                    (m.meter && m.meter.name === 'ai_usage')
+                );
 
                 if (usageMeter) {
-                    // usageMeter.consumedUnits is the usage count (tokens)
-                    // If usageMeter has a 'customer' property with 'usage' or similar structure from SDK
-                    // The 'consumedUnits' might be top level or inside.
-                    // Based on previous fixes, we should be careful.
-                    // Let's assume standard object access.
-                    // If it's the `CustomerMeter` type from SDK:
-                    // export type CustomerMeter = { ... meter: Meter ... }
+                    // Safe access using unknowns or type guards if possible, but for Quick Fix in build:
+                    // We need to cast to something compatible or use standard prop access if typed.
+                    // 'meters' is CustomerMeter[], so 'usageMeter' should be CustomerMeter.
+                    // The issue is likely the .consumedUnits might be missing on some types or we are accessing it wrongly.
 
-                    // Let's rely on standard access first.
-                    // However, we see `usageMeter.consumedUnits` usage below.
-                    const val = (usageMeter as any).consumedUnits || (usageMeter as any).usage || 0;
-                    const usageTokens = Number(val);
+                    // Let's treat it as a record for safety to avoid 'any' error if strict
+                    const meterObj = usageMeter as Record<string, unknown>;
+                    const consumed = meterObj.consumedUnits ?? meterObj.usage ?? 0;
+                    const usageTokens = Number(consumed);
                     balance = calculateRemainingBalance(usageTokens);
                 }
             } catch (error) {
