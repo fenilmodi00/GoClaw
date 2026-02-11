@@ -6,11 +6,13 @@ import { v4 as uuidv4 } from 'uuid';
 export type DeploymentStatus = 'pending' | 'deploying' | 'active' | 'failed';
 
 export interface CreateDeploymentInput {
+    id?: string;
     userId: string;
     email: string;
     model: string;
     channel: string;
     channelToken: string;
+    channelApiKey?: string;
     stripeSessionId: string;
 }
 
@@ -26,7 +28,7 @@ export class DeploymentRepository {
      * Creates a new deployment record
      */
     async create(input: CreateDeploymentInput): Promise<Deployment> {
-        const id = uuidv4();
+        const id = input.id || uuidv4();
         const now = new Date();
 
         const newDeployment: NewDeployment = {

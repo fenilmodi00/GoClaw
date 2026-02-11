@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { initializeApp } from "@/lib/startup";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -31,6 +32,7 @@ export default function RootLayout({
         <ClerkProvider>
           {children}
           <Toaster />
+          <SpeedInsights />
         </ClerkProvider>
       </body>
     </html>

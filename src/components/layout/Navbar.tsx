@@ -40,7 +40,7 @@ export function Navbar() {
 
   // Calculate width based on scroll progress
   // Start at 80vw, shrink to ~52vw (30% increase from original compact size)
-  const navbarWidth = 80 - (scrollProgress * 28) // 80vw -> 52vw
+  const navbarWidth = 90 - (scrollProgress * 20) // 90vw -> 70vw
   const navbarScale = 1 - (scrollProgress * 0.05) // Subtle scale effect
   const topPosition = 24 - (scrollProgress * 8) // Move from top-6 (24px) to top-4 (16px)
 
@@ -58,6 +58,7 @@ export function Navbar() {
           className="flex items-center gap-3 px-6 py-3 rounded-full border border-white/10 backdrop-blur-xl bg-black/40 shadow-2xl"
           style={{
             width: `${navbarWidth}vw`,
+            minWidth: "fit-content", // Ensure it never cuts off content
             transform: `scale(${navbarScale})`,
             transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease',
             boxShadow: scrollProgress > 0.1

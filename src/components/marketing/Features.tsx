@@ -1,13 +1,21 @@
 "use client"
 
+import { motion } from "motion/react"
+
 export function Features() {
     return (
         <div className="max-w-7xl mx-auto">
             {/* Feature Section 1: Install Skills */}
-            <div id="features" className="py-24 scroll-section opacity-0 translate-y-8">
+            <div id="features" className="py-24 scroll-section">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center max-w-5xl mx-auto">
                     {/* Left: Skills Card */}
-                    <div className="bg-[#0e0f11] border border-white/[0.06] rounded-2xl p-5 order-2 md:order-1">
+                    <motion.div
+                        initial={{ opacity: 0, x: -50 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        className="bg-[#0e0f11] border border-white/[0.06] rounded-2xl p-5 order-2 md:order-1"
+                    >
                         {/* Card Header */}
                         <span className="text-[10px] font-medium text-white/30 uppercase tracking-[0.12em] mb-4 block px-1">Skills</span>
 
@@ -51,10 +59,16 @@ export function Features() {
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* Right: Text Content */}
-                    <div className="order-1 md:order-2">
+                    <motion.div
+                        initial={{ opacity: 0, x: 50 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        className="order-1 md:order-2"
+                    >
                         <h2
                             className="text-2xl md:text-3xl font-bold mb-4 leading-[1.15] tracking-[-0.02em]"
                             style={{
@@ -71,15 +85,20 @@ export function Features() {
                             and more from your dashboard. No config files, no
                             terminal commands.
                         </p>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
 
             {/* Feature Section 2: Chat Interface */}
-            <div className="py-24 scroll-section opacity-0 translate-y-8">
+            <div className="py-24 scroll-section">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center max-w-5xl mx-auto">
                     {/* Left: Text Content */}
-                    <div>
+                    <motion.div
+                        initial={{ opacity: 0, x: -50 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        viewport={{ once: true, margin: "-100px" }}
+                    >
                         <h2
                             className="text-2xl md:text-3xl font-bold mb-4 leading-[1.15] tracking-[-0.02em]"
                             style={{
@@ -96,10 +115,16 @@ export function Features() {
                             tasks, get live updates, receive files — from the apps you
                             already use.
                         </p>
-                    </div>
+                    </motion.div>
 
                     {/* Right: Mock Telegram Chat */}
-                    <div className="bg-[#0e0f11] border border-white/[0.06] rounded-2xl p-5">
+                    <motion.div
+                        initial={{ opacity: 0, x: 50 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        className="bg-[#0e0f11] border border-white/[0.06] rounded-2xl p-5"
+                    >
                         {/* Chat Header */}
                         <div className="flex items-center gap-2 mb-5">
                             <div className="w-2 h-2 rounded-full bg-emerald-400/60" />
@@ -135,16 +160,22 @@ export function Features() {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
 
 
             {/* Feature Section 3: Connect Accounts */}
-            <div className="py-24 scroll-section opacity-0 translate-y-8">
+            <div className="py-24 scroll-section">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center max-w-5xl mx-auto">
                     {/* Left: Connected Accounts Card */}
-                    <div className="bg-[#0e0f11] border border-white/[0.06] rounded-2xl p-5 order-2 md:order-1">
+                    <motion.div
+                        initial={{ opacity: 0, x: -50 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        className="bg-[#0e0f11] border border-white/[0.06] rounded-2xl p-5 order-2 md:order-1"
+                    >
                         {/* Card Header */}
                         <span className="text-[10px] font-medium text-white/30 uppercase tracking-[0.12em] mb-4 block px-1">Connected Accounts</span>
 
@@ -179,10 +210,16 @@ export function Features() {
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* Right: Text Content */}
-                    <div className="order-1 md:order-2">
+                    <motion.div
+                        initial={{ opacity: 0, x: 50 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        className="order-1 md:order-2"
+                    >
                         <h2
                             className="text-2xl md:text-3xl font-bold mb-4 leading-[1.15] tracking-[-0.02em]"
                             style={{
@@ -199,7 +236,7 @@ export function Features() {
                             agent access the tools you need — securely and without
                             juggling credentials.
                         </p>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
 
@@ -232,10 +269,10 @@ export function Features() {
                                 <span className="text-[13px] text-white/40 font-medium">1</span>
                             </div>
                             <h3 className="text-white/80 text-sm font-semibold mb-2">
-                                Choose your<br />agent template
+                                Get your Telegram Bot Token<br />From @BotFather
                             </h3>
                             <p className="text-white/30 text-[12px] leading-relaxed max-w-[200px] mx-auto">
-                                Pick from curated presets — research, support, lead gen — or start blank.
+                                select the LLM provider and Model
                             </p>
                         </div>
 

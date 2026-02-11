@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
 
     // Get the base URL for success/cancel redirects
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const successUrl = `${baseUrl}/status/${deploymentId}`;
+    const successUrl = `${baseUrl}/dashboard`;
     const cancelUrl = baseUrl;
 
     logger.debug('Creating Stripe checkout session');
