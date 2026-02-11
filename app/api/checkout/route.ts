@@ -115,6 +115,18 @@ export async function POST(request: NextRequest) {
       logger.debug('User found', { userId: user.id });
     }
 
+    // Ensure Polar customer is linked if missing
+    if (user && !user.polarCustomerId) {
+      try {
+        logger.info('Linking missing Polar Customer ID for user', { userId: user.id });
+        const polarCustomer = await polarService.createCustomer(userEmail, undefined, clerkUserId);
+        await userService.updatePolarCustomerId(user.id, polarCustomer.id);
+        user.polarCustomerId = polarCustomer.id;
+      } catch (err) {
+        logger.warn('Failed to link Polar customer', err);
+      }
+    }
+
     // Check for existing pending deployment with same configuration
     // This allows reusing payment links for identical deployments
     logger.debug('Checking for pending duplicate deployment');

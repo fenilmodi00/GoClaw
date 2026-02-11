@@ -56,6 +56,12 @@ export class UserService {
   async getUserByEmail(email: string): Promise<User | null> {
     return this.userRepository.findByEmail(email);
   }
+  /**
+   * Updates the Polar Customer ID for a user
+   */
+  async updatePolarCustomerId(userId: string, polarCustomerId: string): Promise<User | undefined> {
+    return this.userRepository.update(userId, { polarCustomerId });
+  }
 }
 
 // Singleton instance

@@ -136,6 +136,11 @@ export class PolarService {
      */
     async createCustomer(email: string, name?: string, clerkUserId?: string): Promise<Customer> {
         try {
+            // First try to list customers by email to check existence
+            // The Polar SDK might throw a 422 if we try to create duplicate.
+            // But listing first is safer if the list API is available and fast.
+            // However, typical pattern with robust APIs is "create, if fail check error".
+
             const customer = await this.polar.customers.create({
                 email,
                 name,
@@ -143,7 +148,23 @@ export class PolarService {
             });
             return customer;
         } catch (error) {
-            const err = error as Error;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const err = error as any;
+            // Check if error is "already exists"
+            if (err.message && (err.message.includes('already exists') || JSON.stringify(err).includes('already exists'))) {
+                console.log(`Customer ${email} already exists, fetching details...`);
+                // Fetch and return existing customer
+                const list = await this.polar.customers.list({
+                    email: email,
+                });
+
+                // Polar list returns { items: [...] }
+                const existing = list.result.items?.find(c => c.email === email);
+                if (existing) {
+                    return existing;
+                }
+            }
+
             throw new Error(`Failed to create Polar customer: ${err.message}`);
         }
     }
