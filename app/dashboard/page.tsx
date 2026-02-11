@@ -193,7 +193,7 @@ export default function DashboardPage() {
                 You haven&apos;t deployed any bots yet. Get started by deploying your first bot!
               </p>
               <Link href="/#deploy">
-                <Button className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700">
+                <Button className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg hover:shadow-orange-500/20">
                   Deploy Your First Bot
                 </Button>
               </Link>
@@ -203,32 +203,32 @@ export default function DashboardPage() {
           <>
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-              <Card className="bg-black/60 backdrop-blur-sm border-orange-500/30">
+              <Card className="bg-black/60 backdrop-blur-sm border-orange-500/30 hover:border-orange-500/50 transition-colors">
                 <CardHeader className="pb-3">
                   <CardDescription className="text-gray-400">Total Deployments</CardDescription>
                   <CardTitle className="text-3xl text-white">{deployments.length}</CardTitle>
                 </CardHeader>
               </Card>
-              <Card className="bg-black/60 backdrop-blur-sm border-green-500/30">
+              <Card className="bg-black/60 backdrop-blur-sm border-green-500/30 hover:border-green-500/50 transition-colors">
                 <CardHeader className="pb-3">
                   <CardDescription className="text-gray-400">Active</CardDescription>
-                  <CardTitle className="text-3xl text-green-500">
+                  <CardTitle className="text-3xl text-green-400">
                     {deployments.filter(d => d.status === 'active').length}
                   </CardTitle>
                 </CardHeader>
               </Card>
-              <Card className="bg-black/60 backdrop-blur-sm border-yellow-500/30">
+              <Card className="bg-black/60 backdrop-blur-sm border-yellow-500/30 hover:border-yellow-500/50 transition-colors">
                 <CardHeader className="pb-3">
                   <CardDescription className="text-gray-400">Deploying</CardDescription>
-                  <CardTitle className="text-3xl text-yellow-500">
+                  <CardTitle className="text-3xl text-yellow-400">
                     {deployments.filter(d => d.status === 'deploying' || d.status === 'pending').length}
                   </CardTitle>
                 </CardHeader>
               </Card>
-              <Card className="bg-black/60 backdrop-blur-sm border-red-500/30">
+              <Card className="bg-black/60 backdrop-blur-sm border-red-500/30 hover:border-red-500/50 transition-colors">
                 <CardHeader className="pb-3">
                   <CardDescription className="text-gray-400">Failed</CardDescription>
-                  <CardTitle className="text-3xl text-red-500">
+                  <CardTitle className="text-3xl text-red-400">
                     {deployments.filter(d => d.status === 'failed').length}
                   </CardTitle>
                 </CardHeader>
@@ -240,7 +240,7 @@ export default function DashboardPage() {
               {deployments.map((deployment) => (
                 <Card
                   key={deployment.id}
-                  className="bg-black/60 backdrop-blur-sm border-orange-500/30 hover:border-orange-500/50 transition-colors"
+                  className="bg-black/60 backdrop-blur-sm border-orange-500/30 hover:border-orange-500/50 transition-all hover:shadow-lg hover:shadow-orange-500/10"
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">

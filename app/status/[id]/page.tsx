@@ -50,8 +50,13 @@ export default async function StatusPage({ params }: StatusPageProps) {
     notFound();
   }
 
-  // Extract initial status
+  // Extract initial status and Akash DSEQ
   const initialStatus = deployment.status as DeploymentStatus;
+  const akashDseq = deployment.akashDeploymentId || undefined;
+  
+  // Note: We don't have the user's Akash API key here (it's not stored in DB for security)
+  // The DeploymentLoading will only work if we can get it from the user's session
+  // For now, we'll pass undefined and fall back to database polling
 
   return (
     <main className="min-h-screen p-8 bg-gray-900">
@@ -67,7 +72,8 @@ export default async function StatusPage({ params }: StatusPageProps) {
         {/* StatusTracker Component */}
         <StatusTracker 
           deploymentId={id} 
-          initialStatus={initialStatus} 
+          initialStatus={initialStatus}
+          akashDseq={akashDseq}
         />
       </div>
     </main>

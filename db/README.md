@@ -1,6 +1,6 @@
 # Database Architecture
 
-SimpleClaw uses **Turso** (distributed SQLite) with a professional repository pattern architecture.
+GoClaw uses **Turso** (distributed SQLite) with a professional repository pattern architecture.
 
 ## Architecture Overview
 
@@ -75,15 +75,15 @@ irm https://get.tur.so/install.ps1 | iex
 ### 2. Create Database
 
 ```bash
-turso db create simpleclaw
-turso db show simpleclaw
-turso db tokens create simpleclaw
+turso db create goclaw
+turso db show goclaw
+turso db tokens create goclaw
 ```
 
 ### 3. Configure Environment
 
 ```env
-DATABASE_URL="libsql://simpleclaw-[your-username].turso.io"
+DATABASE_URL="libsql://goclaw-[your-username].turso.io"
 DATABASE_AUTH_TOKEN="eyJhbGc..."
 ENCRYPTION_KEY="<32-byte-hex-string>"
 ```

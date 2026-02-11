@@ -1,6 +1,6 @@
-# SimpleClaw
+# GoClaw
 
-SimpleClaw is a Next.js 15 SaaS application that simplifies the deployment of OpenClaw AI bots to users' Akash Network accounts. Users pay a one-time fee of $29 and provide their own API credentials, while the platform handles all deployment complexity.
+GoClaw is a Next.js 15 SaaS application that simplifies the deployment of OpenClaw AI bots to users' Akash Network accounts. Users pay a one-time fee of $29 and provide their own API credentials, while the platform handles all deployment complexity.
 
 ## Features
 
@@ -39,7 +39,7 @@ SimpleClaw is a Next.js 15 SaaS application that simplifies the deployment of Op
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd simpleclaw
+cd goclaw
 ```
 
 2. Install dependencies:
@@ -75,7 +75,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## Project Structure
 
 ```
-simpleclaw/
+goclaw/
 ├── app/                    # Next.js App Router pages
 │   ├── api/               # API routes
 │   ├── status/            # Status tracking pages
@@ -153,13 +153,13 @@ curl -sSfL https://get.tur.so/install.sh | bash
 
 2. Create a database:
 ```bash
-turso db create simpleclaw
+turso db create goclaw
 ```
 
 3. Get connection details:
 ```bash
-turso db show simpleclaw
-turso db tokens create simpleclaw
+turso db show goclaw
+turso db tokens create goclaw
 ```
 
 ### Clerk Setup
@@ -181,7 +181,7 @@ turso db tokens create simpleclaw
 
 ## Testing Strategy
 
-SimpleClaw uses a dual testing approach:
+GoClaw uses a dual testing approach:
 
 - **Unit Tests**: Verify specific examples, edge cases, and error conditions
 - **Property-Based Tests**: Verify universal properties across all inputs (100+ iterations per test)

@@ -3,7 +3,7 @@ import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 /**
  * Users table schema
  * 
- * Stores user accounts for SimpleClaw SaaS platform.
+ * Stores user accounts for GoClaw SaaS platform.
  * Uses Clerk for authentication - stores clerk_user_id to link to Clerk identity.
  * Simplified schema with no trial management or Akash user accounts.
  * 

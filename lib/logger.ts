@@ -1,5 +1,5 @@
 /**
- * Logger Service for SimpleClaw
+ * Logger Service for GoClaw
  * 
  * Provides structured logging with different log levels.
  * In production, only logs errors and warnings.

@@ -104,7 +104,7 @@ export function TelegramConnectDialog({
                 </li>
                 <li className="flex gap-3">
                   <span className="font-medium text-white flex-shrink-0">4.</span>
-                  <span>Copy the bot token from BotFather's message</span>
+                  <span>Copy the bot token from BotFather&apos;s message</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="font-medium text-white flex-shrink-0">5.</span>
@@ -148,7 +148,7 @@ export function TelegramConnectDialog({
           <div className="hidden lg:block bg-gradient-to-br from-gray-900/50 to-black/50 p-8 border-l border-gray-800/50">
             <div className="relative w-[340px] h-[600px] rounded-2xl overflow-hidden shadow-2xl">
               <video
-                src="/SimpleClaw — Deploy OpenClaw under 1 Minute.mp4"
+                src="/GoClaw — Deploy OpenClaw under 1 Minute.mp4"
                 autoPlay
                 loop
                 muted

@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       const userService = getUserService();
 
       try {
-        // Create SimpleClaw user record
+        // Create GoClaw user record
         const user = await userService.createUserFromClerk(clerkUserId, email);
         console.log(`✅ User created: ${user.id}`);
 

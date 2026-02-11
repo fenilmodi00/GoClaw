@@ -10,7 +10,7 @@ import { logger } from './logger';
 let isInitialized = false;
 
 /**
- * Initializes the SimpleClaw application.
+ * Initializes the GoClaw application.
  * Validates environment variables.
  */
 export function initializeApp(): void {
@@ -19,14 +19,14 @@ export function initializeApp(): void {
     return;
   }
 
-  logger.info('Initializing SimpleClaw application');
+  logger.info('Initializing GoClaw application');
 
   try {
     // Validate environment variables
     validateEnvironment();
 
     isInitialized = true;
-    logger.info('SimpleClaw application initialized successfully');
+    logger.info('GoClaw application initialized successfully');
   } catch (error) {
     logger.error('Failed to initialize application', error);
     throw error;
@@ -75,11 +75,11 @@ export function shutdownApp(): void {
     return;
   }
 
-  logger.info('Shutting down SimpleClaw application');
+  logger.info('Shutting down GoClaw application');
 
   try {
     isInitialized = false;
-    logger.info('SimpleClaw application shut down successfully');
+    logger.info('GoClaw application shut down successfully');
   } catch (error) {
     logger.error('Failed to shut down application', error);
     throw error;

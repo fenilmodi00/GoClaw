@@ -45,7 +45,7 @@ Each deployment card shows:
 - **Deployment Cards** - Full-width cards with hover effects
 
 ### Design System
-- **Colors** - Matches SimpleClaw orange theme
+- **Colors** - Matches GoClaw orange theme
 - **Background** - Black with semi-transparent cards
 - **Borders** - Orange accent borders with hover effects
 - **Typography** - White headings, gray descriptions

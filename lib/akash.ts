@@ -212,13 +212,13 @@ profiles:
     openclaw:
       resources:
         cpu:
-          units: 1
+          units: 1.5
         memory:
-          size: 2Gi
+          size: 3Gi
         storage:
           - size: 2Gi
           - name: openclaw-data
-            size: 8Gi
+            size: 10Gi
             attributes:
               persistent: true
               class: beta3

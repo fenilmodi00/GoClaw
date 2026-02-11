@@ -1,32 +1,58 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Menu } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 import { LineShadowText } from "@/components/line-shadow-text"
-import { ShimmerButton } from "@/components/shimmer-button"
-import { useState } from "react"
 import { DeploymentForm } from "@/components/DeploymentForm"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { SignUpButton, UserButton, useUser } from "@clerk/nextjs"
+import { SignUpButton, useUser } from "@clerk/nextjs"
+import { Navbar } from "@/components/Navbar"
+import { useEffect } from "react"
 
 export default function HomePage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { isSignedIn, isLoaded } = useUser()
+  const { isSignedIn } = useUser()
+
+  useEffect(() => {
+    // Smooth scroll animation on page load - trigger earlier
+    const observerOptions = {
+      threshold: 0.05, // Trigger when only 5% is visible
+      rootMargin: '0px 0px -50px 0px' // Trigger 50px before reaching viewport
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible')
+        }
+      })
+    }, observerOptions)
+
+    // Observe all scroll sections
+    const scrollSections = document.querySelectorAll('.scroll-section')
+    scrollSections.forEach((section) => observer.observe(section))
+
+    return () => {
+      scrollSections.forEach((section) => observer.unobserve(section))
+    }
+  }, [])
 
   return (
     <>
-      {/* Animated Hero Section */}
-      <div className="min-h-screen relative overflow-hidden z-10">
-      <div className="absolute inset-0 bg-black">
-        {/* Flowing wave rays overlay */}
-        <div className="absolute inset-0">
-          <svg
-            className="absolute inset-0 w-full h-full"
-            viewBox="0 0 1200 800"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            preserveAspectRatio="xMidYMid slice"
-          >
+      {/* Floating Navbar */}
+      <Navbar />
+
+      {/* Hero Section with Animated Threads Background */}
+      <div className="min-h-screen relative overflow-hidden">
+        <div className="absolute inset-0 bg-black">
+          {/* Flowing wave rays overlay */}
+          <div className="absolute inset-0">
+            <svg
+              className="absolute inset-0 w-full h-full"
+              viewBox="0 0 1200 800"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              preserveAspectRatio="xMidYMid slice"
+            >
             <defs>
               <radialGradient id="neonPulse1" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="rgba(255,255,255,1)" />
@@ -696,7 +722,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      <style jsx>{`
+      {/* Hero Content */}
+      <div className="relative z-10">
+        <style jsx>{`
         @keyframes flow {
           0%, 100% {
             opacity: 0.3;
@@ -724,89 +752,12 @@ export default function HomePage() {
         }
       `}</style>
 
-      {/* Header Navigation */}
-      <header className="relative z-10 flex items-center justify-between px-4 sm:px-6 py-4 lg:px-12">
-        <div className="flex items-center space-x-2 pl-3 sm:pl-6 lg:pl-12">
-          <h1 className="text-2xl font-bold text-white">SimpleClaw</h1>
-        </div>
-
-        <nav className="hidden md:flex items-center space-x-6 lg:space-x-8">
-          {isSignedIn && (
-            <a href="/dashboard" className="text-white/80 hover:text-white transition-colors text-sm lg:text-base font-medium">
-              Dashboard
-            </a>
-          )}
-          <a href="#features" className="text-white/80 hover:text-white transition-colors text-sm lg:text-base">
-            Features
-          </a>
-          <a href="#pricing" className="text-white/80 hover:text-white transition-colors text-sm lg:text-base">
-            Pricing
-          </a>
-          <a href="#how-it-works" className="text-white/80 hover:text-white transition-colors text-sm lg:text-base">
-            How It Works
-          </a>
-          <a href="#faq" className="text-white/80 hover:text-white transition-colors text-sm lg:text-base">
-            FAQ
-          </a>
-        </nav>
-
-        {/* Mobile menu button */}
-        <div className="flex items-center gap-4">
-          <button className="md:hidden text-white p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-            <Menu className="w-6 h-6" />
-          </button>
-
-          {!isLoaded ? (
-            <div className="w-8 h-8 animate-pulse bg-gray-700 rounded-full" />
-          ) : isSignedIn ? (
-            <UserButton />
-          ) : (
-            <SignUpButton mode="modal">
-              <ShimmerButton className="hidden md:flex bg-orange-500 hover:bg-orange-600 text-white px-4 lg:px-6 py-2 rounded-xl text-sm lg:text-base font-medium shadow-lg">
-                Deploy Now
-              </ShimmerButton>
-            </SignUpButton>
-          )}
-        </div>
-      </header>
-
-      {mobileMenuOpen && (
-        <div className="md:hidden absolute top-16 left-0 right-0 bg-black/95 backdrop-blur-sm border-b border-white/10 z-20">
-          <nav className="flex flex-col space-y-4 px-6 py-6">
-            {isSignedIn && (
-              <a href="/dashboard" className="text-white/80 hover:text-white transition-colors font-medium">
-                Dashboard
-              </a>
-            )}
-            <a href="#features" className="text-white/80 hover:text-white transition-colors">
-              Features
-            </a>
-            <a href="#pricing" className="text-white/80 hover:text-white transition-colors">
-              Pricing
-            </a>
-            <a href="#how-it-works" className="text-white/80 hover:text-white transition-colors">
-              How It Works
-            </a>
-            <a href="#faq" className="text-white/80 hover:text-white transition-colors">
-              FAQ
-            </a>
-            {!isSignedIn && (
-              <SignUpButton mode="modal">
-                <ShimmerButton className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl text-sm font-medium shadow-lg w-fit">
-                  Deploy Now
-                </ShimmerButton>
-              </SignUpButton>
-            )}
-          </nav>
-        </div>
-      )}
-
       {/* Main Content */}
       <main className="relative z-10 flex flex-col items-start justify-start sm:justify-center min-h-[calc(100vh-80px)] px-4 sm:px-6 lg:px-12 max-w-6xl pt-4 sm:-mt-12 lg:-mt-24 pl-6 sm:pl-12 lg:pl-20">
         {/* Trial Badge */}
         <div className="mb-4 sm:mb-8">
           <div className="inline-flex items-center bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-3 sm:px-4 py-2">
-            <span className="text-white text-xs md:text-xs">Try 14 days trial free</span>
+            <span className="text-white text-xs md:text-xs">3 Day's MoneyBack Gurntee 💸 </span>
           </div>
         </div>
 
@@ -829,7 +780,7 @@ export default function HomePage() {
         {isSignedIn ? (
           <a href="#deploy">
             <Button className="group relative bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base md:text-xs lg:text-lg font-semibold flex items-center gap-2 backdrop-blur-sm border border-orange-400/30 shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/40 transition-all duration-300 hover:scale-105 hover:-translate-y-0.5">
-              Get Started - $29
+              Deploy Now
               <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 group-hover:-rotate-12 transition-transform duration-300" />
               <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </Button>
@@ -844,105 +795,30 @@ export default function HomePage() {
           </SignUpButton>
         )}
       </main>
-    </div>
+      </div>
+      </div>
 
-      {/* SimpleClaw Content Sections */}
-      <main className="min-h-screen relative z-10 text-white bg-black">
-        <section className="py-12 px-4 sm:px-6 lg:px-8">
+      {/* Content Sections with Solid Dark Background */}
+      <main className="relative z-10 text-white bg-[#0a0a0a]">
+        <section className="py-12 px-4 sm:px-6 lg:px-8 scroll-section opacity-0 translate-y-8">
           <div className="max-w-7xl mx-auto">
             {/* Features Grid */}
-            <div id="features" className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-              <Card className="bg-black/40 backdrop-blur-sm border-orange-500/30 hover:border-orange-500/50 transition-colors">
-                <CardHeader>
-                  <CardTitle className="text-white">🚀 Simple Deployment</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-gray-300">
-                    Fill out one form with your API credentials and we&apos;ll deploy your OpenClaw bot to Akash Network automatically.
-                  </CardDescription>
-                </CardContent>
-              </Card>
+            
 
-              <Card className="bg-black/40 backdrop-blur-sm border-orange-500/30 hover:border-orange-500/50 transition-colors">
-                <CardHeader>
-                  <CardTitle className="text-white">💰 One-Time Payment</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-gray-300">
-                    Pay just $29 once. No subscriptions, no hidden fees. You own your deployment on your Akash account.
-                  </CardDescription>
-                </CardContent>
-              </Card>
+            
 
-              <Card className="bg-black/40 backdrop-blur-sm border-orange-500/30 hover:border-orange-500/50 transition-colors">
-                <CardHeader>
-                  <CardTitle className="text-white">🔒 Your Credentials</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-gray-300">
-                    Use your own Telegram, Akash, and LLM provider credentials. Your keys are encrypted and secure.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Pricing Section */}
-            <div id="pricing" className="mb-16">
-              <Card className="bg-gradient-to-br from-orange-900/50 to-orange-600/30 backdrop-blur-sm border-orange-500/50 max-w-2xl mx-auto">
-                <CardHeader className="text-center">
-                  <CardTitle className="text-3xl text-white mb-2">Simple Pricing</CardTitle>
-                  <CardDescription className="text-gray-200 text-lg">
-                    Everything you need to deploy your OpenClaw bot
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <div className="mb-6">
-                    <span className="text-6xl font-bold text-white">$29</span>
-                    <span className="text-xl text-gray-300 ml-2">one-time</span>
-                  </div>
-                  <ul className="text-left space-y-3 mb-6 max-w-md mx-auto">
-                    <li className="flex items-start text-gray-200">
-                      <span className="mr-2">✓</span>
-                      <span>Automated deployment to Akash Network</span>
-                    </li>
-                    <li className="flex items-start text-gray-200">
-                      <span className="mr-2">✓</span>
-                      <span>Support for OpenAI, Google, Claude, and AkashML</span>
-                    </li>
-                    <li className="flex items-start text-gray-200">
-                      <span className="mr-2">✓</span>
-                      <span>Real-time deployment status tracking</span>
-                    </li>
-                    <li className="flex items-start text-gray-200">
-                      <span className="mr-2">✓</span>
-                      <span>Secure credential encryption</span>
-                    </li>
-                    <li className="flex items-start text-gray-200">
-                      <span className="mr-2">✓</span>
-                      <span>Instant Telegram bot activation</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Deployment Form Section */}
-            <div id="deploy" className="mb-16">
-              <Card className="bg-black/60 backdrop-blur-sm border-gray-800 max-w-4xl mx-auto">
-                <CardHeader className="text-center pb-6">
-                  <CardTitle className="text-2xl text-white mb-2">Deploy Your Bot</CardTitle>
-                  <CardDescription className="text-gray-400">
-                    Configure your AI assistant in just a few clicks
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="px-6 pb-8">
-                  <DeploymentForm />
-                </CardContent>
-              </Card>
-            </div>
+           
+    
+          <div id="deploy" className="mb-16 scroll-section opacity-0 translate-y-8">
+             <Card className="bg-black/60 backdrop-blur-sm border-gray-800 max-w-4xl mx-auto">
+          <CardContent className="px-6 pb-8">
+            <DeploymentForm />
+             </CardContent>
+             </Card>
+             </div>
 
             {/* How It Works Section */}
-            <div id="how-it-works" className="mb-16">
+            <div id="how-it-works" className="mb-16 scroll-section opacity-0 translate-y-8">
               <h2 className="text-3xl font-bold text-center mb-8 text-white">How It Works</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="text-center">
@@ -985,7 +861,7 @@ export default function HomePage() {
             </div>
 
             {/* FAQ Section */}
-            <div id="faq" className="max-w-3xl mx-auto">
+            <div id="faq" className="max-w-3xl mx-auto scroll-section opacity-0 translate-y-8">
               <h2 className="text-3xl font-bold text-center mb-8 text-white">Frequently Asked Questions</h2>
               <div className="space-y-4">
                 <Card className="bg-black/40 backdrop-blur-sm border-orange-500/30 hover:border-orange-500/50 transition-colors">
@@ -994,7 +870,7 @@ export default function HomePage() {
                   </CardHeader>
                   <CardContent>
                     <CardDescription className="text-gray-300">
-                      OpenClaw is an AI-powered Telegram bot that can interact with users using various LLM providers. SimpleClaw makes it easy to deploy your own instance.
+                      OpenClaw is an AI-powered Telegram bot that can interact with users using various LLM providers. GoClaw makes it easy to deploy your own instance.
                     </CardDescription>
                   </CardContent>
                 </Card>
@@ -1016,7 +892,7 @@ export default function HomePage() {
                   </CardHeader>
                   <CardContent>
                     <CardDescription className="text-gray-300">
-                      The $29 SimpleClaw fee is one-time only. You&apos;ll pay Akash Network directly for hosting (typically a few dollars per month) and your LLM provider for API usage.
+                      The $29 GoClaw fee is one-time only. You&apos;ll pay Akash Network directly for hosting (typically a few dollars per month) and your LLM provider for API usage.
                     </CardDescription>
                   </CardContent>
                 </Card>
@@ -1039,7 +915,7 @@ export default function HomePage() {
         {/* Footer */}
         <footer className="border-t border-orange-500/20 py-8 px-4">
           <div className="max-w-7xl mx-auto text-center text-gray-400 text-sm">
-            <p>© 2024 SimpleClaw. Deploy OpenClaw bots with ease.</p>
+            <p>© 2024 GoClaw. Deploy OpenClaw bots with ease.</p>
           </div>
         </footer>
       </main>

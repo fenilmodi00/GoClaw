@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { Copy } from "lucide-react";
 import type { UserResource } from "@clerk/types";
 
 interface UserProfileProps {
@@ -17,7 +16,7 @@ export function UserProfile({ user }: UserProfileProps) {
   };
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-900/50 border border-gray-800">
+    <div className="flex items-center gap-3 p-3 rounded-xl">
       <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
         {user.imageUrl ? (
           <Image
@@ -43,10 +42,12 @@ export function UserProfile({ user }: UserProfileProps) {
       <button
         type="button"
         onClick={handleCopyEmail}
-        className="p-1 hover:bg-gray-800 rounded transition-colors flex-shrink-0"
+        className="text-gray-400 hover:text-white transition-colors"
         title="Copy email"
       >
-        <Copy className="w-4 h-4 text-gray-400" />
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
       </button>
     </div>
   );

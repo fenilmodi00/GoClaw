@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { SuccessDisplay } from "@/components/SuccessDisplay";
+import { DeploymentLoading } from "@/components/DeploymentLoading";
 
 /**
  * Deployment status type
@@ -37,8 +38,7 @@ interface StatusTrackerProps {
  * StatusTracker Component
  * 
  * Displays real-time deployment status with polling.
- * Polls the /api/status endpoint every 5 seconds until the deployment
- * reaches a terminal state (active or failed).
+ * For "deploying" status, shows DeploymentLoading component.
  * 
  * Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 11.2, 11.4
  */
@@ -70,13 +70,13 @@ export function StatusTracker({ deploymentId, initialStatus }: StatusTrackerProp
     // Fetch status immediately
     fetchStatus();
 
-    // Set up polling interval (5 seconds)
+    // Set up polling interval (3 seconds)
     const intervalId = setInterval(() => {
       // Only fetch if status is not terminal
       if (status !== "active" && status !== "failed") {
         fetchStatus();
       }
-    }, 5000);
+    }, 3000);
     
     // Cleanup interval on unmount
     return () => clearInterval(intervalId);
@@ -135,6 +135,24 @@ export function StatusTracker({ deploymentId, initialStatus }: StatusTrackerProp
     }
   };
 
+  // Show DeploymentLoading for deploying status
+  if (status === "deploying") {
+    return (
+      <DeploymentLoading
+        deploymentId={deploymentId}
+        onComplete={(data) => {
+          console.log("Deployment complete:", data);
+          setStatus("active");
+        }}
+        onError={(errorMsg) => {
+          console.error("Deployment error:", errorMsg);
+          setError(errorMsg);
+          setStatus("failed");
+        }}
+      />
+    );
+  }
+
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
       {/* Show SuccessDisplay when deployment is active */}
@@ -146,6 +164,7 @@ export function StatusTracker({ deploymentId, initialStatus }: StatusTrackerProp
           deploymentId={statusData.deploymentId}
           leaseId={statusData.leaseId}
           gatewayToken="2002"
+          showLoading={false}
         />
       ) : (
         <>
@@ -164,22 +183,22 @@ export function StatusTracker({ deploymentId, initialStatus }: StatusTrackerProp
               {/* Loading indicator for pending/deploying states */}
               {(status === "pending" || status === "deploying") && (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
                 </div>
               )}
 
               {/* Error message for failed state */}
               {status === "failed" && statusData?.errorMessage && (
-                <div className="p-4 rounded-md bg-destructive/10 border border-destructive">
-                  <p className="text-sm text-destructive font-medium mb-1">Error Details:</p>
-                  <p className="text-sm text-destructive">{statusData.errorMessage}</p>
+                <div className="p-4 rounded-md bg-red-500/10 border border-red-500/50">
+                  <p className="text-sm text-red-400 font-medium mb-1">Error Details:</p>
+                  <p className="text-sm text-red-300">{statusData.errorMessage}</p>
                 </div>
               )}
 
               {/* General error display */}
               {error && status !== "failed" && (
-                <div className="p-4 rounded-md bg-destructive/10 border border-destructive">
-                  <p className="text-sm text-destructive">{error}</p>
+                <div className="p-4 rounded-md bg-red-500/10 border border-red-500/50">
+                  <p className="text-sm text-red-400">{error}</p>
                 </div>
               )}
             </CardContent>
@@ -191,7 +210,7 @@ export function StatusTracker({ deploymentId, initialStatus }: StatusTrackerProp
               <CardTitle className="text-base">Deployment ID</CardTitle>
             </CardHeader>
             <CardContent>
-              <code className="text-xs bg-muted p-2 rounded block break-all">
+              <code className="text-xs bg-black/40 border border-orange-500/20 p-2 rounded block break-all text-gray-300">
                 {deploymentId}
               </code>
               <p className="text-xs text-muted-foreground mt-2">

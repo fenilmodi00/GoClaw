@@ -7,8 +7,11 @@ import { initializeApp } from "@/lib/startup";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SimpleClaw - Deploy OpenClaw AI Bots to Akash",
+  title: "GoClaw - Deploy OpenClaw AI Bots to Akash",
   description: "Deploy OpenClaw AI bots to your Akash Network account with a simple one-time payment",
+  icons: {
+    icon: '/logo/GoClaw.png',
+  },
 };
 
 // Initialize application on server startup

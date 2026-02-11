@@ -3,22 +3,13 @@
 import { useUser } from "@clerk/nextjs";
 import { SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { LineShadowText } from "@/components/line-shadow-text";
-import { ShimmerButton } from "@/components/shimmer-button";
 import { DeploymentForm } from "@/components/DeploymentForm";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 /**
  * Deploy Page Component
  * 
  * A deployment page with animated hero design that integrates Clerk authentication
- * and displays the SimpleClaw deployment form in a clean, minimal layout.
+ * and displays the GoClaw deployment form in a clean, minimal layout.
  * 
  * Features:
  * - Black background with animated orange flowing wave threads
@@ -32,652 +23,114 @@ export default function DeployPage() {
   const { isSignedIn, isLoaded } = useUser();
 
   return (
-    <div className="relative min-h-screen bg-black text-white overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-black">
-        <div className="absolute inset-0">
-          <svg
-            className="absolute inset-0 w-full h-full"
-            viewBox="0 0 1200 800"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            preserveAspectRatio="xMidYMid slice"
-            aria-hidden="true"
-            role="presentation"
-          >
-            <defs>
-              <radialGradient id="neonPulse1" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="rgba(255,255,255,1)" />
-                <stop offset="30%" stopColor="rgba(251,146,60,1)" />
-                <stop offset="70%" stopColor="rgba(249,115,22,0.8)" />
-                <stop offset="100%" stopColor="rgba(249,115,22,0)" />
-              </radialGradient>
-              <radialGradient id="neonPulse2" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
-                <stop offset="25%" stopColor="rgba(251,146,60,0.9)" />
-                <stop offset="60%" stopColor="rgba(234,88,12,0.7)" />
-                <stop offset="100%" stopColor="rgba(234,88,12,0)" />
-              </radialGradient>
-              <radialGradient id="neonPulse3" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="rgba(255,255,255,1)" />
-                <stop offset="35%" stopColor="rgba(251,146,60,1)" />
-                <stop offset="75%" stopColor="rgba(234,88,12,0.6)" />
-                <stop offset="100%" stopColor="rgba(234,88,12,0)" />
-              </radialGradient>
-              <linearGradient id="threadFade1" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="rgba(0,0,0,1)" />
-                <stop offset="15%" stopColor="rgba(249,115,22,0.8)" />
-                <stop offset="85%" stopColor="rgba(249,115,22,0.8)" />
-                <stop offset="100%" stopColor="rgba(0,0,0,1)" />
-              </linearGradient>
-              <linearGradient id="threadFade2" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="rgba(0,0,0,1)" />
-                <stop offset="12%" stopColor="rgba(251,146,60,0.7)" />
-                <stop offset="88%" stopColor="rgba(251,146,60,0.7)" />
-                <stop offset="100%" stopColor="rgba(0,0,0,1)" />
-              </linearGradient>
-              <linearGradient id="threadFade3" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="rgba(0,0,0,1)" />
-                <stop offset="18%" stopColor="rgba(234,88,12,0.8)" />
-                <stop offset="82%" stopColor="rgba(234,88,12,0.8)" />
-                <stop offset="100%" stopColor="rgba(0,0,0,1)" />
-              </linearGradient>
-              <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-                <feMerge>
-                  <feMergeNode in="coloredBlur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
+    <div className="relative min-h-screen bg-[#08090a] text-white overflow-hidden">
+      {/* CSS Keyframes for orb animations */}
+      <style>{`
+        @keyframes orb-float-1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          25% { transform: translate(80px, -40px) scale(1.1); }
+          50% { transform: translate(-30px, -80px) scale(0.95); }
+          75% { transform: translate(50px, 30px) scale(1.05); }
+        }
+        @keyframes orb-float-2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(-60px, 50px) scale(1.15); }
+          66% { transform: translate(40px, -30px) scale(0.9); }
+        }
+        @keyframes orb-float-3 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          20% { transform: translate(40px, 60px) scale(1.08); }
+          40% { transform: translate(-50px, 20px) scale(0.92); }
+          60% { transform: translate(20px, -50px) scale(1.12); }
+          80% { transform: translate(-30px, -20px) scale(0.96); }
+        }
+      `}</style>
 
-            <g>
-              {/* Thread 1 */}
-              <path
-                id="thread1"
-                d="M50 720 Q200 590 350 540 Q500 490 650 520 Q800 550 950 460 Q1100 370 1200 340"
-                stroke="url(#threadFade1)"
-                strokeWidth="0.8"
-                fill="none"
-                opacity="0.8"
-              />
-              <circle r="2" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4s" repeatCount="indefinite">
-                  <mpath href="#thread1" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 2 */}
-              <path
-                id="thread2"
-                d="M80 730 Q250 620 400 570 Q550 520 700 550 Q850 580 1000 490 Q1150 400 1300 370"
-                stroke="url(#threadFade2)"
-                strokeWidth="1.5"
-                fill="none"
-                opacity="0.7"
-              />
-              <circle r="3" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5s" repeatCount="indefinite">
-                  <mpath href="#thread2" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 3 */}
-              <path
-                id="thread3"
-                d="M20 710 Q180 580 320 530 Q460 480 600 510 Q740 540 880 450 Q1020 360 1200 330"
-                stroke="url(#threadFade3)"
-                strokeWidth="1.2"
-                fill="none"
-                opacity="0.8"
-              />
-              <circle r="2.5" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.5s" repeatCount="indefinite">
-                  <mpath href="#thread3" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 4 */}
-              <path
-                id="thread4"
-                d="M120 740 Q280 640 450 590 Q620 540 770 570 Q920 600 1070 510 Q1220 420 1350 390"
-                stroke="url(#threadFade1)"
-                strokeWidth="0.6"
-                fill="none"
-                opacity="0.6"
-              />
-              <circle r="1.5" fill="url(#neonPulse3)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.5s" repeatCount="indefinite">
-                  <mpath href="#thread4" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 5 */}
-              <path
-                id="thread5"
-                d="M60 725 Q220 600 380 550 Q540 500 680 530 Q820 560 960 470 Q1100 380 1280 350"
-                stroke="url(#threadFade2)"
-                strokeWidth="1.0"
-                fill="none"
-                opacity="0.7"
-              />
-              <circle r="2.2" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.2s" repeatCount="indefinite">
-                  <mpath href="#thread5" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 6 */}
-              <path
-                id="thread6"
-                d="M150 735 Q300 660 480 610 Q660 560 800 590 Q940 620 1080 530 Q1220 440 1400 410"
-                stroke="url(#threadFade3)"
-                strokeWidth="1.3"
-                fill="none"
-                opacity="0.6"
-              />
-              <circle r="2.8" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.2s" repeatCount="indefinite">
-                  <mpath href="#thread6" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 7 */}
-              <path
-                id="thread7"
-                d="M40 715 Q190 585 340 535 Q490 485 630 515 Q770 545 910 455 Q1050 365 1250 335"
-                stroke="url(#threadFade1)"
-                strokeWidth="0.9"
-                fill="none"
-                opacity="0.8"
-              />
-              <circle r="2" fill="url(#neonPulse3)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.8s" repeatCount="indefinite">
-                  <mpath href="#thread7" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 8 */}
-              <path
-                id="thread8"
-                d="M100 728 Q260 630 420 580 Q580 530 720 560 Q860 590 1000 500 Q1140 410 1320 380"
-                stroke="url(#threadFade2)"
-                strokeWidth="1.4"
-                fill="none"
-                opacity="0.7"
-              />
-              <circle r="3" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.8s" repeatCount="indefinite">
-                  <mpath href="#thread8" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 9 */}
-              <path
-                id="thread9"
-                d="M30 722 Q170 595 310 545 Q450 495 590 525 Q730 555 870 465 Q1010 375 1180 345"
-                stroke="url(#threadFade3)"
-                strokeWidth="0.5"
-                fill="none"
-                opacity="0.6"
-              />
-              <circle r="1.2" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="6s" repeatCount="indefinite">
-                  <mpath href="#thread9" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 10 */}
-              <path
-                id="thread10"
-                d="M90 732 Q240 625 390 575 Q540 525 680 555 Q820 585 960 495 Q1100 405 1300 375"
-                stroke="url(#threadFade1)"
-                strokeWidth="1.1"
-                fill="none"
-                opacity="0.8"
-              />
-              <circle r="2.5" fill="url(#neonPulse3)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.3s" repeatCount="indefinite">
-                  <mpath href="#thread10" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 11 */}
-              <path
-                id="thread11"
-                d="M70 727 Q210 605 360 555 Q510 505 650 535 Q790 565 930 475 Q1070 385 1260 355"
-                stroke="url(#threadFade2)"
-                strokeWidth="0.4"
-                fill="none"
-                opacity="0.5"
-              />
-              <circle r="1" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.7s" repeatCount="indefinite">
-                  <mpath href="#thread11" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 12 */}
-              <path
-                id="thread12"
-                d="M110 738 Q270 645 430 595 Q590 545 730 575 Q870 605 1010 515 Q1150 425 1380 395"
-                stroke="url(#threadFade3)"
-                strokeWidth="1.5"
-                fill="none"
-                opacity="0.7"
-              />
-              <circle r="3.2" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.7s" repeatCount="indefinite">
-                  <mpath href="#thread12" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 13 */}
-              <path
-                id="thread13"
-                d="M45 718 Q185 588 325 538 Q465 488 605 518 Q745 548 885 458 Q1025 368 1220 338"
-                stroke="url(#threadFade1)"
-                strokeWidth="0.7"
-                fill="none"
-                opacity="0.6"
-              />
-              <circle r="1.8" fill="url(#neonPulse3)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.3s" repeatCount="indefinite">
-                  <mpath href="#thread13" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 14 */}
-              <path
-                id="thread14"
-                d="M130 721 Q290 630 460 580 Q630 530 770 560 Q910 590 1050 500 Q1190 410 1350 380"
-                stroke="url(#threadFade2)"
-                strokeWidth="1.0"
-                fill="none"
-                opacity="0.8"
-              />
-              <circle r="2.3" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.9s" repeatCount="indefinite">
-                  <mpath href="#thread14" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 15 */}
-              <path
-                id="thread15"
-                d="M25 713 Q165 583 305 533 Q445 483 585 513 Q725 543 865 453 Q1005 363 1200 333"
-                stroke="url(#threadFade3)"
-                strokeWidth="0.3"
-                fill="none"
-                opacity="0.4"
-              />
-              <circle r="0.8" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="6.2s" repeatCount="indefinite">
-                  <mpath href="#thread15" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 16 */}
-              <path
-                id="thread16"
-                d="M85 719 Q235 605 385 555 Q535 505 675 535 Q815 565 955 475 Q1095 385 1320 355"
-                stroke="url(#threadFade1)"
-                strokeWidth="1.5"
-                fill="none"
-                opacity="0.9"
-              />
-              <circle r="3.2" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.1s" repeatCount="indefinite">
-                  <mpath href="#thread16" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 17 */}
-              <path
-                id="thread17"
-                d="M50 720 Q180 660 320 620 Q460 580 600 600 Q740 620 880 560 Q1020 500 1200 340"
-                stroke="url(#threadFade2)"
-                strokeWidth="0.6"
-                fill="none"
-                opacity="0.5"
-              />
-              <circle r="1.5" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.1s" repeatCount="indefinite">
-                  <mpath href="#thread17" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 18 */}
-              <path
-                id="thread18"
-                d="M50 720 Q200 680 350 640 Q500 600 650 620 Q800 640 950 580 Q1100 520 1200 340"
-                stroke="url(#threadFade3)"
-                strokeWidth="1.2"
-                fill="none"
-                opacity="0.7"
-              />
-              <circle r="2.8" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.6s" repeatCount="indefinite">
-                  <mpath href="#thread18" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 19 */}
-              <path
-                id="thread19"
-                d="M50 720 Q160 670 280 630 Q400 590 540 610 Q680 630 820 570 Q960 510 1200 340"
-                stroke="url(#threadFade1)"
-                strokeWidth="0.8"
-                fill="none"
-                opacity="0.6"
-              />
-              <circle r="2" fill="url(#neonPulse3)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.4s" repeatCount="indefinite">
-                  <mpath href="#thread19" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 20 */}
-              <path
-                id="thread20"
-                d="M50 720 Q220 690 380 650 Q540 610 680 630 Q820 650 960 590 Q1100 530 1200 340"
-                stroke="url(#threadFade2)"
-                strokeWidth="1.4"
-                fill="none"
-                opacity="0.8"
-              />
-              <circle r="3" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.4s" repeatCount="indefinite">
-                  <mpath href="#thread20" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 21 */}
-              <path
-                id="thread21"
-                d="M50 720 Q170 675 300 635 Q430 595 570 615 Q710 635 850 575 Q990 515 1200 340"
-                stroke="url(#threadFade3)"
-                strokeWidth="0.5"
-                fill="none"
-                opacity="0.4"
-              />
-              <circle r="1.2" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.9s" repeatCount="indefinite">
-                  <mpath href="#thread21" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 22 */}
-              <path
-                id="thread22"
-                d="M50 720 Q190 745 340 705 Q490 665 630 685 Q770 705 910 645 Q1050 585 1200 340"
-                stroke="url(#threadFade1)"
-                strokeWidth="1.1"
-                fill="none"
-                opacity="0.7"
-              />
-              <circle r="2.5" fill="url(#neonPulse3)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.8s" repeatCount="indefinite">
-                  <mpath href="#thread22" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 23 */}
-              <path
-                id="thread23"
-                d="M50 720 Q150 725 270 685 Q390 645 530 665 Q670 685 810 625 Q950 565 1200 340"
-                stroke="url(#threadFade2)"
-                strokeWidth="0.9"
-                fill="none"
-                opacity="0.6"
-              />
-              <circle r="2.2" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.2s" repeatCount="indefinite">
-                  <mpath href="#thread23" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 24 */}
-              <path
-                id="thread24"
-                d="M50 720 Q210 755 370 715 Q530 675 670 695 Q810 715 950 655 Q1090 595 1200 340"
-                stroke="url(#threadFade3)"
-                strokeWidth="1.3"
-                fill="none"
-                opacity="0.8"
-              />
-              <circle r="2.9" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.2s" repeatCount="indefinite">
-                  <mpath href="#thread24" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 25 */}
-              <path
-                id="thread25"
-                d="M50 720 Q165 730 290 690 Q415 650 555 670 Q695 690 835 630 Q975 570 1200 340"
-                stroke="url(#threadFade1)"
-                strokeWidth="0.7"
-                fill="none"
-                opacity="0.5"
-              />
-              <circle r="1.8" fill="url(#neonPulse3)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.6s" repeatCount="indefinite">
-                  <mpath href="#thread25" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 26 */}
-              <path
-                id="thread26"
-                d="M50 720 Q230 760 390 720 Q550 680 690 700 Q830 720 970 660 Q1110 600 1200 340"
-                stroke="url(#threadFade2)"
-                strokeWidth="1.0"
-                fill="none"
-                opacity="0.7"
-              />
-              <circle r="2.4" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.7s" repeatCount="indefinite">
-                  <mpath href="#thread26" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 27 */}
-              <path
-                id="thread27"
-                d="M50 720 Q175 740 310 700 Q445 660 585 680 Q725 700 865 640 Q1005 580 1200 340"
-                stroke="url(#threadFade3)"
-                strokeWidth="0.4"
-                fill="none"
-                opacity="0.4"
-              />
-              <circle r="1" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="6.1s" repeatCount="indefinite">
-                  <mpath href="#thread27" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 28 */}
-              <path
-                id="thread28"
-                d="M50 720 Q195 750 350 710 Q505 670 645 690 Q785 710 925 650 Q1065 590 1200 340"
-                stroke="url(#threadFade1)"
-                strokeWidth="1.5"
-                fill="none"
-                opacity="0.9"
-              />
-              <circle r="3.1" fill="url(#neonPulse3)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.3s" repeatCount="indefinite">
-                  <mpath href="#thread28" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 29 */}
-              <path
-                id="thread29"
-                d="M50 720 Q155 735 285 695 Q415 655 555 675 Q695 695 835 635 Q975 575 1200 340"
-                stroke="url(#threadFade2)"
-                strokeWidth="0.8"
-                fill="none"
-                opacity="0.6"
-              />
-              <circle r="2" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.3s" repeatCount="indefinite">
-                  <mpath href="#thread29" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 30 */}
-              <path
-                id="thread30"
-                d="M50 720 Q215 765 375 725 Q535 685 675 705 Q815 725 955 665 Q1095 605 1200 340"
-                stroke="url(#threadFade3)"
-                strokeWidth="1.2"
-                fill="none"
-                opacity="0.8"
-              />
-              <circle r="2.7" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.5s" repeatCount="indefinite">
-                  <mpath href="#thread30" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 31 */}
-              <path
-                id="thread31"
-                d="M50 720 Q185 745 325 705 Q465 665 605 685 Q745 705 885 645 Q1025 585 1200 340"
-                stroke="url(#threadFade1)"
-                strokeWidth="0.6"
-                fill="none"
-                opacity="0.5"
-              />
-              <circle r="1.5" fill="url(#neonPulse3)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.8s" repeatCount="indefinite">
-                  <mpath href="#thread31" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 32 */}
-              <path
-                id="thread32"
-                d="M50 720 Q205 755 365 715 Q525 675 665 695 Q805 715 945 655 Q1085 595 1200 340"
-                stroke="url(#threadFade2)"
-                strokeWidth="1.4"
-                fill="none"
-                opacity="0.8"
-              />
-              <circle r="3" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.1s" repeatCount="indefinite">
-                  <mpath href="#thread32" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 33 */}
-              <path
-                id="thread33"
-                d="M50 720 Q160 730 295 690 Q430 650 570 670 Q710 690 850 630 Q990 570 1200 340"
-                stroke="url(#threadFade3)"
-                strokeWidth="0.9"
-                fill="none"
-                opacity="0.6"
-              />
-              <circle r="2.1" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="5.1s" repeatCount="indefinite">
-                  <mpath href="#thread33" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 34 */}
-              <path
-                id="thread34"
-                d="M50 720 Q225 770 385 730 Q545 690 685 710 Q825 730 965 670 Q1105 610 1200 340"
-                stroke="url(#threadFade1)"
-                strokeWidth="1.1"
-                fill="none"
-                opacity="0.7"
-              />
-              <circle r="2.6" fill="url(#neonPulse3)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.9s" repeatCount="indefinite">
-                  <mpath href="#thread34" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 35 */}
-              <path
-                id="thread35"
-                d="M50 720 Q170 740 305 700 Q440 660 580 680 Q720 700 860 640 Q1000 580 1200 340"
-                stroke="url(#threadFade2)"
-                strokeWidth="0.3"
-                fill="none"
-                opacity="0.4"
-              />
-              <circle r="0.8" fill="url(#neonPulse1)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="6.3s" repeatCount="indefinite">
-                  <mpath href="#thread35" />
-                </animateMotion>
-              </circle>
-
-              {/* Thread 36 */}
-              <path
-                id="thread36"
-                d="M50 720 Q240 715 400 675 Q560 635 700 655 Q840 675 980 615 Q1120 555 1200 340"
-                stroke="url(#threadFade3)"
-                strokeWidth="1.5"
-                fill="none"
-                opacity="0.9"
-              />
-              <circle r="3.2" fill="url(#neonPulse2)" opacity="1" filter="url(#neonGlow)">
-                <animateMotion dur="4.0s" repeatCount="indefinite">
-                  <mpath href="#thread36" />
-                </animateMotion>
-              </circle>
-            </g>
-          </svg>
-        </div>
+      {/* Floating Gradient Orbs Background - StartClaw inspired */}
+      <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
+        {/* Orb 1 - Top right, warm orange */}
+        <div
+          className="absolute w-[500px] h-[500px] rounded-full opacity-[0.08]"
+          style={{
+            top: '-10%',
+            right: '-5%',
+            background: 'radial-gradient(circle, rgba(249,115,22,0.8) 0%, rgba(249,115,22,0) 70%)',
+            filter: 'blur(80px)',
+            animation: 'orb-float-1 20s ease-in-out infinite',
+          }}
+        />
+        {/* Orb 2 - Center left, deeper orange */}
+        <div
+          className="absolute w-[600px] h-[600px] rounded-full opacity-[0.06]"
+          style={{
+            top: '30%',
+            left: '-10%',
+            background: 'radial-gradient(circle, rgba(234,88,12,0.7) 0%, rgba(234,88,12,0) 70%)',
+            filter: 'blur(100px)',
+            animation: 'orb-float-2 25s ease-in-out infinite',
+          }}
+        />
+        {/* Orb 3 - Bottom center, amber glow */}
+        <div
+          className="absolute w-[400px] h-[400px] rounded-full opacity-[0.05]"
+          style={{
+            bottom: '-5%',
+            left: '40%',
+            background: 'radial-gradient(circle, rgba(251,146,60,0.6) 0%, rgba(251,146,60,0) 70%)',
+            filter: 'blur(70px)',
+            animation: 'orb-float-3 18s ease-in-out infinite',
+          }}
+        />
+        {/* Subtle noise/grain overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")',
+          }}
+        />
       </div>
 
       {/* Navigation Header */}
-      <header className="relative z-10 flex items-center justify-between px-4 md:px-6 py-4" role="banner">
+      <header className="relative z-10 flex items-center justify-between px-6 md:px-8 py-4 border-b border-white/[0.06]" role="banner">
         <div className="flex items-center space-x-2">
-          <Link 
-            href="/" 
-            className="text-xl font-bold text-white hover:text-white/80 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black rounded-sm px-1"
-            aria-label="SimpleClaw home"
+          <Link
+            href="/"
+            className="text-sm font-semibold text-white/90 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black rounded-sm px-1 tracking-tight"
+            aria-label="GoClaw home"
           >
-            SimpleClaw
+            GoClaw
           </Link>
         </div>
 
-        <nav className="flex items-center space-x-4" role="navigation" aria-label="Main navigation">
-          <Link 
-            href="/" 
-            className="text-white/70 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black rounded-sm px-1"
+        <nav className="flex items-center space-x-3" role="navigation" aria-label="Main navigation">
+          <Link
+            href="/"
+            className="text-[13px] text-white/40 hover:text-white/70 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black rounded-sm px-2 py-1"
             aria-label="Go to home page"
           >
             Home
           </Link>
           {!isLoaded ? (
-            <div className="text-white/50" role="status" aria-live="polite">Loading...</div>
+            <div className="text-white/30 text-[13px]" role="status" aria-live="polite">Loading...</div>
           ) : isSignedIn ? (
             <UserButton />
           ) : (
             <>
               <SignInButton mode="modal">
-                <button 
-                  className="text-white/70 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black rounded-sm px-2 py-1"
+                <button
+                  className="text-[13px] text-white/40 hover:text-white/70 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black rounded-sm px-2 py-1"
                   aria-label="Sign in to your account"
                 >
                   Sign In
                 </button>
               </SignInButton>
               <SignUpButton mode="modal">
-                <ShimmerButton
-                  background="linear-gradient(135deg, #f97316 0%, #ea580c 100%)"
-                  className="text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black"
+                <button
+                  className="text-[13px] font-medium bg-white text-black px-4 py-1.5 rounded-lg hover:bg-gray-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   aria-label="Create a new account"
                 >
                   Sign Up
-                </ShimmerButton>
+                </button>
               </SignUpButton>
             </>
           )}
@@ -692,61 +145,47 @@ export default function DeployPage() {
             <div className="text-white/70 text-lg">Loading...</div>
           </div>
         ) : !isSignedIn ? (
-          // Unauthenticated State - Will be fully implemented in task 6
-          <div className="text-center max-w-4xl">
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
-              Deploy Your{" "}
-              <LineShadowText shadowColor="white">OpenClaw</LineShadowText>
-              {" "}Bot
+          // Unauthenticated State
+          <div className="text-center max-w-2xl">
+            <h1 
+              className="text-4xl md:text-6xl font-bold mb-5 leading-[1.1] tracking-[-0.03em]"
+              style={{
+                background: 'linear-gradient(180deg, #f7f8f8 0%, rgba(138,143,152,0.6) 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              Deploy Your OpenClaw Bot
             </h1>
 
-            <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto">
+            <p className="text-white/40 text-sm mb-8 max-w-md mx-auto leading-relaxed">
               Sign in to deploy your OpenClaw AI bot to Akash Network in minutes
             </p>
 
-            <div className="flex gap-4 justify-center" role="group" aria-label="Authentication options">
+            <div className="flex gap-3 justify-center" role="group" aria-label="Authentication options">
               <SignInButton mode="modal">
-                <ShimmerButton
-                  background="linear-gradient(135deg, #f97316 0%, #ea580c 100%)"
-                  className="text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black"
+                <button
+                  className="text-sm font-medium bg-white text-black px-6 py-2.5 rounded-xl hover:bg-gray-50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:-translate-y-[1px] focus:outline-none focus:ring-2 focus:ring-orange-500"
                   aria-label="Sign in to your account"
                 >
                   Sign In
-                </ShimmerButton>
+                </button>
               </SignInButton>
               <SignUpButton mode="modal">
-                <ShimmerButton
-                  background="linear-gradient(135deg, #f97316 0%, #ea580c 100%)"
-                  className="text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black"
+                <button
+                  className="text-sm font-medium bg-white/[0.06] text-white/70 border border-white/[0.08] px-6 py-2.5 rounded-xl hover:bg-white/[0.1] hover:text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   aria-label="Create a new account"
                 >
                   Sign Up
-                </ShimmerButton>
+                </button>
               </SignUpButton>
             </div>
           </div>
         ) : (
-          // Authenticated State - Will be fully implemented in task 7
-          <div className="w-full max-w-3xl">
-            <h1 className="text-3xl md:text-5xl font-bold text-white mb-4 text-center">
-              Deploy Your Bot
-            </h1>
-
-            <p className="text-white/70 text-base mb-8 max-w-xl mx-auto text-center">
-              Configure your OpenClaw bot deployment below
-            </p>
-
-            <Card className="bg-gray-900/80 border-white/10 backdrop-blur-sm" role="region" aria-label="Deployment configuration form">
-              <CardHeader>
-                <CardTitle className="text-white">Deployment Configuration</CardTitle>
-                <CardDescription className="text-white/70">
-                  Enter your credentials to deploy
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DeploymentForm />
-              </CardContent>
-            </Card>
+          // Authenticated State - Deployment Form
+          <div className="w-full max-w-4xl">
+            <DeploymentForm />
           </div>
         )}
       </main>

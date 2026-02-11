@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 
 /**
- * StripeService handles all Stripe payment operations for SimpleClaw.
+ * StripeService handles all Stripe payment operations for GoClaw.
  * 
  * This service provides methods to:
  * - Create checkout sessions for $29 one-time payments
@@ -52,8 +52,8 @@ export class StripeService {
    * const session = await stripeService.createCheckoutSession({
    *   email: 'user@example.com',
    *   deploymentId: '123e4567-e89b-12d3-a456-426614174000',
-   *   successUrl: 'https://simpleclaw.com/status/123e4567-e89b-12d3-a456-426614174000',
-   *   cancelUrl: 'https://simpleclaw.com'
+   *   successUrl: 'https://goclaw.com/status/123e4567-e89b-12d3-a456-426614174000',
+   *   cancelUrl: 'https://goclaw.com'
    * });
    * // Returns: { id: 'cs_test_...', url: 'https://checkout.stripe.com/...' }
    */

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { deploymentService } from '@/services/deployment/deployment-service';
 import { userService } from '@/services/user/user-service';
 import { logger } from '@/lib/logger';
@@ -31,14 +31,37 @@ export async function GET(_request: NextRequest) {
     logger.debug('Fetching deployments for user', { clerkUserId });
 
     // Get user from database
-    const user = await userService.getUserByClerkId(clerkUserId);
+    let user = await userService.getUserByClerkId(clerkUserId);
     
     if (!user) {
-      logger.warn('Deployments API: User not found in database', { clerkUserId });
-      return NextResponse.json(
-        { error: 'User not found. Please complete registration.' },
-        { status: 404 }
-      );
+      logger.info('User not found in database, creating user automatically');
+      
+      // Get user email from Clerk
+      const client = await clerkClient();
+      const clerkUser = await client.users.getUser(clerkUserId);
+      const userEmail = clerkUser.emailAddresses[0]?.emailAddress;
+
+      if (!userEmail) {
+        logger.error('Deployments API: User email not found');
+        return NextResponse.json(
+          { error: 'User email not found. Please update your profile.' },
+          { status: 400 }
+        );
+      }
+
+      // Check if email exists with different Clerk ID (user was deleted and recreated)
+      const existingUserByEmail = await userService.getUserByEmail(userEmail);
+      if (existingUserByEmail) {
+        logger.warn('User with same email exists but different Clerk ID, using existing user', {
+          oldClerkId: existingUserByEmail.clerkUserId,
+          newClerkId: clerkUserId
+        });
+        user = existingUserByEmail;
+      } else {
+        // Create new user
+        user = await userService.createUserFromClerk(clerkUserId, userEmail);
+        logger.info('User created automatically', { userId: user.id });
+      }
     }
 
     // Get all deployments for user

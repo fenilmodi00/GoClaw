@@ -88,8 +88,20 @@ export async function POST(request: NextRequest) {
     
     if (!user) {
       logger.info('User not found in database, creating new user');
-      user = await userService.createUserFromClerk(clerkUserId, userEmail);
-      logger.info('User created', { userId: user.id });
+      
+      // Check if email exists with different Clerk ID (user was deleted and recreated)
+      const existingUserByEmail = await userService.getUserByEmail(userEmail);
+      if (existingUserByEmail) {
+        logger.warn('User with same email exists but different Clerk ID, updating Clerk ID', {
+          oldClerkId: existingUserByEmail.clerkUserId,
+          newClerkId: clerkUserId
+        });
+        // Use the existing user record
+        user = existingUserByEmail;
+      } else {
+        user = await userService.createUserFromClerk(clerkUserId, userEmail);
+        logger.info('User created', { userId: user.id });
+      }
     } else {
       logger.debug('User found', { userId: user.id });
     }
