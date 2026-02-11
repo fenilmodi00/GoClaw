@@ -42,3 +42,10 @@ next-env.d.ts
 
 # vitest
 .vitest
+
+# IDE configs
+.vscode/
+.kiro/
+
+# Build artifacts
+build_output.txt

@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { deploymentService } from '@/services/deployment/deployment-service';
 import { userService } from '@/services/user/user-service';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/lib/rate-limit';
 
 /**
  * GET /api/deployments
@@ -15,11 +16,11 @@ import { logger } from '@/lib/logger';
  * - 404: User not found in database
  * - 500: Server error
  */
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     // Get authenticated user from Clerk
     const { userId: clerkUserId } = await auth();
-    
+
     if (!clerkUserId) {
       logger.warn('Deployments API: User not authenticated');
       return NextResponse.json(
@@ -28,14 +29,24 @@ export async function GET(_request: NextRequest) {
       );
     }
 
+    // Rate limit: 30 requests per user per 60 seconds
+    const rateLimitResult = rateLimit(`deployments:${clerkUserId}`, 30, 60_000);
+    if (!rateLimitResult.success) {
+      logger.warn('Deployments API: Rate limit exceeded', { clerkUserId });
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before trying again.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(rateLimitResult.resetMs / 1000)) } }
+      );
+    }
+
     logger.debug('Fetching deployments for user', { clerkUserId });
 
     // Get user from database
     let user = await userService.getUserByClerkId(clerkUserId);
-    
+
     if (!user) {
       logger.info('User not found in database, creating user automatically');
-      
+
       // Get user email from Clerk
       const client = await clerkClient();
       const clerkUser = await client.users.getUser(clerkUserId);
@@ -67,9 +78,9 @@ export async function GET(_request: NextRequest) {
     // Get all deployments for user
     const deployments = await deploymentService.getUserDeployments(user.id);
 
-    logger.info('Deployments retrieved', { 
-      userId: user.id, 
-      count: deployments.length 
+    logger.info('Deployments retrieved', {
+      userId: user.id,
+      count: deployments.length
     });
 
     // Return deployments without sensitive fields

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { StatusTracker } from "@/components/StatusTracker";
-import { getDatabaseService } from "@/lib/database";
+import { deploymentService } from "@/services/deployment/deployment-service";
 import type { DeploymentStatus } from "@/components/StatusTracker";
 
 /**
@@ -37,8 +37,7 @@ export default async function StatusPage({ params }: StatusPageProps) {
   // Fetch initial deployment status from database
   let deployment;
   try {
-    const databaseService = getDatabaseService();
-    deployment = await databaseService.getDeploymentById(id);
+    deployment = await deploymentService.getDeploymentById(id);
   } catch (error) {
     console.error("Error fetching deployment:", error);
     // If there's a database error, show 404 rather than exposing internal errors
@@ -50,13 +49,8 @@ export default async function StatusPage({ params }: StatusPageProps) {
     notFound();
   }
 
-  // Extract initial status and Akash DSEQ
+  // Extract initial status
   const initialStatus = deployment.status as DeploymentStatus;
-  const akashDseq = deployment.akashDeploymentId || undefined;
-  
-  // Note: We don't have the user's Akash API key here (it's not stored in DB for security)
-  // The DeploymentLoading will only work if we can get it from the user's session
-  // For now, we'll pass undefined and fall back to database polling
 
   return (
     <main className="min-h-screen p-8 bg-gray-900">
@@ -70,10 +64,9 @@ export default async function StatusPage({ params }: StatusPageProps) {
         </div>
 
         {/* StatusTracker Component */}
-        <StatusTracker 
-          deploymentId={id} 
+        <StatusTracker
+          deploymentId={id}
           initialStatus={initialStatus}
-          akashDseq={akashDseq}
         />
       </div>
     </main>

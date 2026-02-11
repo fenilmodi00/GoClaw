@@ -170,7 +170,7 @@ export class StripeService {
   async getSession(sessionId: string): Promise<{ id: string; url: string | null } | null> {
     try {
       const session = await this.stripe.checkout.sessions.retrieve(sessionId);
-      
+
       // Only return sessions that are still open (not expired or completed)
       if (session.status === 'open') {
         return {
@@ -178,14 +178,31 @@ export class StripeService {
           url: session.url,
         };
       }
-      
+
       return null;
-    } catch (error) {
+    } catch (_error) {
       // Session not found or error retrieving
       return null;
     }
   }
 }
 
-// Export a singleton instance for use across the application
-export const stripeService = new StripeService();
+// Lazy-loaded singleton instance
+let _stripeService: StripeService | null = null;
+
+export function getStripeService(): StripeService {
+  if (!_stripeService) {
+    _stripeService = new StripeService();
+  }
+  return _stripeService;
+}
+
+// Export a lazy-loaded singleton instance for use across the application
+// The Proxy defers StripeService construction until first property access,
+// preventing crashes when STRIPE_SECRET_KEY is not set on unrelated pages.
+export const stripeService = new Proxy({} as StripeService, {
+  get(_target, prop) {
+    const service = getStripeService();
+    return service[prop as keyof StripeService];
+  }
+});

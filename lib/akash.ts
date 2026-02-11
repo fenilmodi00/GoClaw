@@ -160,15 +160,37 @@ export interface AkashLeaseResponse {
  * });
  * ```
  */
+/**
+ * Sanitizes a value before interpolation into SDL YAML templates.
+ * Strips characters that could break YAML structure or inject additional env vars.
+ *
+ * @param value - The raw string value to sanitize
+ * @returns Sanitized string safe for SDL interpolation
+ */
+function sanitizeEnvValue(value: string): string {
+  // Remove newlines, carriage returns, and null bytes that could inject YAML
+  return value.replace(/[\n\r\0]/g, '');
+}
+
 export function generateSDL(params: SDLParams): string {
   const { telegramBotToken, gatewayToken = '2002' } = params;
 
   // Get AkashML API key from environment
   const akashmlApiKey = process.env.AKASHML_KEY || '';
-  
+
   if (!akashmlApiKey) {
     throw new Error('AKASHML_KEY environment variable is required');
   }
+
+  // Sanitize all user-controlled values before SDL interpolation
+  const safeBotToken = sanitizeEnvValue(telegramBotToken);
+  const safeGatewayToken = sanitizeEnvValue(gatewayToken);
+
+  // TODO: SECURITY — AKASHML_KEY is baked into the SDL and visible in the Akash
+  // deployment manifest. This is a known risk. Mitigations to implement:
+  // 1. Generate per-deployment scoped API keys (requires AkashML API support)
+  // 2. Use Akash secrets management for runtime injection
+  // 3. Rotate the key periodically and revoke on deployment closure
 
   // Generate SDL based on new OpenClaw requirements
   const sdl = `version: "2.0"
@@ -195,11 +217,11 @@ services:
       - CONTEXT_WINDOW=200000
       - MAX_TOKENS=8192
       - WORKSPACE=/home/node/.openclaw/workspace
-      - OPENCLAW_GATEWAY_TOKEN=${gatewayToken}
+      - OPENCLAW_GATEWAY_TOKEN=${safeGatewayToken}
       - OPENCLAW_GATEWAY_BIND=lan
       - OPENCLAW_GATEWAY_PORT=18789
       - OPENCLAW_BRIDGE_PORT=18790
-      - TELEGRAM_BOT_TOKEN=${telegramBotToken}
+      - TELEGRAM_BOT_TOKEN=${safeBotToken}
       - TELEGRAM_ENABLED=true
     params:
       storage:
@@ -305,7 +327,7 @@ export async function createDeployment(
     }
 
     const data: AkashDeploymentResponse = await response.json();
-    
+
     if (!data.data?.dseq || !data.data?.manifest) {
       throw new Error('Invalid deployment response: missing dseq or manifest');
     }
@@ -448,7 +470,7 @@ export async function createLease(
     }
 
     const data: AkashLeaseResponse = await response.json();
-    
+
     if (!data.data?.leases || data.data.leases.length === 0) {
       throw new Error('Invalid lease response: no leases created');
     }
@@ -470,7 +492,7 @@ export async function createLease(
 export function extractServiceUrl(leaseResponse: AkashLeaseResponse): string | null {
   try {
     const lease = leaseResponse.data.leases[0];
-    
+
     if (!lease.status) {
       return null;
     }
@@ -518,7 +540,7 @@ export async function waitForServiceUrl(
   // If not available, inform user that deployment is starting
   console.log(`Service URL not immediately available. Deployment may still be starting.`);
   console.log(`Check console.akash.network for deployment status.`);
-  
+
   return null;
 }
 

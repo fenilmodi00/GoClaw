@@ -34,7 +34,11 @@ export const CheckoutSchema = v.object({
     v.string(),
     v.picklist(['telegram', 'discord', 'whatsapp'], 'Invalid channel selection')
   ),
-  channelToken: v.pipe(v.string(), v.minLength(1, 'Channel token is required')),
+  channelToken: v.pipe(
+    v.string(),
+    v.minLength(1, 'Channel token is required'),
+    v.regex(/^\d+:[A-Za-z0-9_-]+$/, 'Invalid Telegram bot token format. Expected format: 123456:ABC-DEF...')
+  ),
 });
 
 /**

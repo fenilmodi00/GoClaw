@@ -86,10 +86,10 @@ class Logger {
   error(message: string, error?: unknown): void {
     const errorData = error instanceof Error
       ? {
-          message: error.message,
-          stack: error.stack,
-          name: error.name,
-        }
+        message: error.message,
+        ...(this.isDevelopment ? { stack: error.stack } : {}),
+        name: error.name,
+      }
       : error;
 
     this.log('error', message, errorData);

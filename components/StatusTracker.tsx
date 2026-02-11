@@ -52,7 +52,7 @@ export function StatusTracker({ deploymentId, initialStatus }: StatusTrackerProp
     const fetchStatus = async () => {
       try {
         const response = await fetch(`/api/status?id=${deploymentId}`);
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || "Failed to fetch deployment status");
@@ -77,7 +77,7 @@ export function StatusTracker({ deploymentId, initialStatus }: StatusTrackerProp
         fetchStatus();
       }
     }, 3000);
-    
+
     // Cleanup interval on unmount
     return () => clearInterval(intervalId);
   }, [deploymentId, status]);
@@ -181,7 +181,7 @@ export function StatusTracker({ deploymentId, initialStatus }: StatusTrackerProp
             </CardHeader>
             <CardContent>
               {/* Loading indicator for pending/deploying states */}
-              {(status === "pending" || status === "deploying") && (
+              {status === "pending" && (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
                 </div>

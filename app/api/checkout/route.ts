@@ -6,6 +6,7 @@ import { stripeService } from '@/lib/stripe';
 import { userService } from '@/services/user/user-service';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/lib/rate-limit';
 
 /**
  * POST /api/checkout
@@ -31,12 +32,22 @@ export async function POST(request: NextRequest) {
 
     // Get authenticated user from Clerk
     const { userId: clerkUserId } = await auth();
-    
+
     if (!clerkUserId) {
       logger.warn('Checkout API: User not authenticated');
       return NextResponse.json(
         { error: 'Authentication required. Please sign in.' },
         { status: 401 }
+      );
+    }
+
+    // Rate limit: 5 checkout requests per user per 60 seconds
+    const rateLimitResult = rateLimit(`checkout:${clerkUserId}`, 5, 60_000);
+    if (!rateLimitResult.success) {
+      logger.warn('Checkout API: Rate limit exceeded', { clerkUserId });
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before trying again.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(rateLimitResult.resetMs / 1000)) } }
       );
     }
 
@@ -62,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     // Validate request body using Valibot schema (Requirement 8.6)
     const validationResult = v.safeParse(CheckoutSchema, body);
-    
+
     if (!validationResult.success) {
       logger.warn('Validation failed', { issues: validationResult.issues });
       // Return validation errors with field-specific messages (Requirement 7.4)
@@ -85,10 +96,10 @@ export async function POST(request: NextRequest) {
 
     // Check if user exists in our database
     let user = await userService.getUserByClerkId(clerkUserId);
-    
+
     if (!user) {
       logger.info('User not found in database, creating new user');
-      
+
       // Check if email exists with different Clerk ID (user was deleted and recreated)
       const existingUserByEmail = await userService.getUserByEmail(userEmail);
       if (existingUserByEmail) {
@@ -124,7 +135,7 @@ export async function POST(request: NextRequest) {
 
       // Retrieve existing Stripe session
       const existingSession = await stripeService.getSession(existingDeployment.stripeSessionId);
-      
+
       if (existingSession && existingSession.url) {
         logger.info('Reusing existing Stripe session');
         return NextResponse.json({
@@ -187,7 +198,7 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
-      
+
       if (error.message.includes('database') || error.message.includes('Database')) {
         return NextResponse.json(
           { error: 'Service temporarily unavailable. Please try again.' },
