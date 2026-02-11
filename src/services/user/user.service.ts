@@ -1,5 +1,6 @@
 import { getUserRepository } from '@/db/repositories/user-repository';
 import type { User } from '@/db/schema';
+import { polarService } from '../polar/polar.service';
 
 /**
  * UserService - Business logic layer for user management
@@ -19,7 +20,20 @@ export class UserService {
    * Creates a new user from Clerk authentication
    */
   async createUserFromClerk(clerkUserId: string, email: string): Promise<User> {
-    return this.userRepository.create({ clerkUserId, email });
+    let polarCustomerId: string | undefined;
+    try {
+      const polarCustomer = await polarService.createCustomer(email, undefined, clerkUserId);
+      polarCustomerId = polarCustomer.id;
+
+      // Subscribe to Free Tier if configured
+      const freeTierProductId = process.env.POLAR_FREE_TIER_PRODUCT_ID;
+      if (freeTierProductId && polarCustomerId) {
+        await polarService.subscribeCustomer(polarCustomerId, freeTierProductId);
+      }
+    } catch (error) {
+      console.error('Failed to create Polar customer:', error);
+    }
+    return this.userRepository.create({ clerkUserId, email, polarCustomerId });
   }
 
   /**

@@ -17,12 +17,6 @@ export {
   userService,
 } from './user/user.service';
 
-export {
-  StripeService,
-  getStripeService,
-  stripeService,
-} from './stripe/stripe.service';
-
 export * from './akash/akash.service';
 
 export {
@@ -30,3 +24,9 @@ export {
   getTelegramService,
   telegramService,
 } from './telegram/telegram.service';
+
+export {
+  PolarService,
+  getPolarService,
+  polarService,
+} from './polar/polar.service';

@@ -7,7 +7,7 @@ export class UserRepository {
     /**
      * Creates a new user record
      */
-    async create(input: { clerkUserId: string; email: string }): Promise<User> {
+    async create(input: { clerkUserId: string; email: string; polarCustomerId?: string }): Promise<User> {
         const id = uuidv4();
         const now = new Date();
 
@@ -15,6 +15,7 @@ export class UserRepository {
             id,
             clerkUserId: input.clerkUserId,
             email: input.email,
+            polarCustomerId: input.polarCustomerId,
             createdAt: now,
             updatedAt: now,
         };
@@ -44,6 +45,14 @@ export class UserRepository {
      */
     async findByEmail(email: string): Promise<User | null> {
         const results = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        return results[0] || null;
+    }
+
+    /**
+     * Updates a user record
+     */
+    async update(id: string, data: Partial<NewUser>): Promise<User | null> {
+        const results = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, id)).returning();
         return results[0] || null;
     }
 }

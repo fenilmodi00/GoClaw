@@ -41,8 +41,7 @@ function validateEnvironment(): void {
   const required = [
     'DATABASE_URL',
     'DATABASE_AUTH_TOKEN',
-    'STRIPE_SECRET_KEY',
-    'STRIPE_WEBHOOK_SECRET',
+
     'ENCRYPTION_KEY',
     'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
     'CLERK_SECRET_KEY',
@@ -57,9 +56,9 @@ function validateEnvironment(): void {
     const errorMessage = `Missing required environment variables: ${missing.join(', ')}\n` +
       'Please check your .env file and ensure all required variables are set.\n' +
       'See .env.example for a complete list of required variables.';
-    
+
     logger.error('Environment validation failed', { missingVars: missing });
-    
+
     throw new Error(errorMessage);
   }
 

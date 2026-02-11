@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as v from 'valibot';
 import { CheckoutSchema } from '@/types/api';
-import { deploymentService, stripeService, userService } from '@/services';
+import { deploymentService, polarService, userService } from '@/services';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { logger } from '@/lib/logger';
 import { rateLimit } from '@/middleware/rate-limit';
@@ -9,14 +9,14 @@ import { rateLimit } from '@/middleware/rate-limit';
 /**
  * POST /api/checkout
  * 
- * Creates a new deployment record and Stripe checkout session.
+ * Creates a new deployment record and Polar checkout session.
  * 
  * Flow:
  * 1. Validate request body using CheckoutSchema
  * 2. Get authenticated user from Clerk
  * 3. Check if user exists in database, create if not
  * 4. Create deployment record in database with status "pending"
- * 5. Create Stripe checkout session with one-time payment
+ * 5. Create Polar checkout session with one-time payment
  * 6. Return session URL and deployment ID for redirect
  * 
  * Requirements: 2.2, 7.1, 7.4, 7.5, 8.1, 8.6
@@ -128,16 +128,25 @@ export async function POST(request: NextRequest) {
     if (existingDeployment) {
       logger.info('Found existing pending deployment, reusing payment link', {
         deploymentId: existingDeployment.id,
+        paymentProvider: existingDeployment.paymentProvider,
+        polarId: existingDeployment.polarId,
         stripeSessionId: existingDeployment.stripeSessionId
       });
 
-      // Retrieve existing Stripe session
-      const existingSession = await stripeService.getSession(existingDeployment.stripeSessionId);
+      let sessionUrl: string | undefined;
 
-      if (existingSession && existingSession.url) {
-        logger.info('Reusing existing Stripe session');
+      // Handle Polar
+      if (existingDeployment.paymentProvider === 'polar' && existingDeployment.polarId) {
+        const existingSession = await polarService.getCheckoutSession(existingDeployment.polarId);
+        if (existingSession && existingSession.status === 'open') {
+          sessionUrl = existingSession.url;
+        }
+      }
+
+      if (sessionUrl) {
+        logger.info('Reusing existing checkout session');
         return NextResponse.json({
-          sessionUrl: existingSession.url,
+          sessionUrl: sessionUrl,
           deploymentId: existingDeployment.id,
         });
       }
@@ -152,16 +161,30 @@ export async function POST(request: NextRequest) {
     // Get the base URL for success/cancel redirects
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const successUrl = `${baseUrl}/dashboard`;
-    const cancelUrl = baseUrl;
+    // const cancelUrl = baseUrl; // Polar might not require cancelUrl or use it differently? SDK doesn't show it in params I checked.
+    // Checked SDK logic: create params. 
+    // I noticed in PolarService.createCheckoutSession I only passed successUrl.
+    // Let's stick to what I implemented in PolarService.
 
-    logger.debug('Creating Stripe checkout session');
-    const session = await stripeService.createCheckoutSession({
+    // Validate Polar Customer ID to avoid 422 errors
+    let polarCustomerId = user.polarCustomerId || undefined;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (polarCustomerId && !uuidRegex.test(polarCustomerId)) {
+      logger.warn('Invalid Polar Customer ID validation in checkout', { polarCustomerId });
+      polarCustomerId = undefined; // Fallback to creating new customer/guest checkout
+    }
+
+    const session = await polarService.createCheckoutSession({
       email: userEmail,
       deploymentId: deploymentId,
       successUrl,
-      cancelUrl,
+      customerId: polarCustomerId, // Integrate with DB: Link checkout to existing Polar customer
+      metadata: {
+        userId: user.id, // Internal DB ID
+        clerkUserId: clerkUserId, // Clerk ID for backup
+      },
     });
-    logger.info('Stripe session created', { sessionId: session.id });
+    logger.info('Polar session created', { sessionId: session.id });
 
     logger.debug('Creating deployment record');
     const deployment = await deploymentService.createDeployment({
@@ -172,7 +195,10 @@ export async function POST(request: NextRequest) {
       channel: data.channel,
       channelToken: data.channelToken,
       channelApiKey: undefined,
-      stripeSessionId: session.id,
+
+      // Polar fields
+      paymentProvider: 'polar',
+      polarId: session.id,
     });
     logger.info('Deployment created', { deploymentId: deployment.id });
 
@@ -189,8 +215,8 @@ export async function POST(request: NextRequest) {
 
     // Return user-friendly error message without exposing technical details
     if (error instanceof Error) {
-      // Check if it's a database or Stripe error
-      if (error.message.includes('Stripe')) {
+      // Check if it's a database or Polar/Stripe error
+      if (error.message.includes('Polar')) {
         return NextResponse.json(
           { error: 'Payment processing failed. Please try again.' },
           { status: 500 }

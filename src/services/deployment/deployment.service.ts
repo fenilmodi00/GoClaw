@@ -29,12 +29,7 @@ export class DeploymentService {
     return this.deploymentRepository.findById(id);
   }
 
-  /**
-   * Finds deployment by Stripe session ID
-   */
-  async getDeploymentByStripeSession(sessionId: string): Promise<Deployment | null> {
-    return this.deploymentRepository.findByStripeSession(sessionId);
-  }
+
 
   /**
    * Gets all deployments for a user

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { CreditBalance } from "./CreditBalance";
 import { usePathname } from "next/navigation";
 import { useUser, UserButton } from "@clerk/nextjs";
 import {
@@ -12,7 +13,6 @@ import {
     Heart,
     CreditCard,
     Settings,
-    Coins,
     HelpCircle,
     LogOut,
     X,
@@ -205,46 +205,8 @@ export function DashboardSidebar({
                     </nav>
 
                     {/* Credits Section */}
-                    <div className="px-4 py-3 border-t border-white/[0.06]">
-                        <div className="flex items-center justify-between mb-1 h-5 overflow-hidden">
-                            <div className="flex items-center gap-1.5 shrink-0">
-                                <Coins className="h-3.5 w-3.5 text-yellow-500" />
-                                <span
-                                    className={cn(
-                                        "text-xs text-gray-400 transition-opacity duration-200",
-                                        showLabels ? "opacity-100" : "opacity-0 w-0"
-                                    )}
-                                >
-                                    Credits
-                                </span>
-                            </div>
-                            <span
-                                className={cn(
-                                    "text-xs text-gray-500 transition-opacity duration-200",
-                                    showLabels ? "opacity-100" : "opacity-0"
-                                )}
-                            >
-                                0 machines
-                            </span>
-                        </div>
-                        <p
-                            className={cn(
-                                "text-xl font-bold text-white mb-1 transition-all duration-200 origin-left whitespace-nowrap",
-                                !showLabels && "scale-75 translate-x-1"
-                            )}
-                        >
-                            $0.00
-                        </p>
-                        <Link
-                            href="/billing"
-                            onClick={onMobileClose}
-                            className={cn(
-                                "text-xs text-orange-500 hover:text-orange-400 transition-colors flex items-center gap-1 whitespace-nowrap",
-                                !showLabels && "scale-0 w-0 opacity-0"
-                            )}
-                        >
-                            Add credits →
-                        </Link>
+                    <div className="px-3 py-3 border-t border-white/[0.06]">
+                        <CreditBalance compact={!showLabels} />
                     </div>
 
                     {/* Help */}

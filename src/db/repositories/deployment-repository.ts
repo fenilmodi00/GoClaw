@@ -13,7 +13,9 @@ export interface CreateDeploymentInput {
     channel: string;
     channelToken: string;
     channelApiKey?: string;
-    stripeSessionId: string;
+    stripeSessionId?: string;
+    paymentProvider?: 'stripe' | 'polar';
+    polarId?: string;
 }
 
 export interface UpdateDeploymentStatusInput {
@@ -21,6 +23,8 @@ export interface UpdateDeploymentStatusInput {
     akashLeaseId?: string;
     providerUrl?: string;
     errorMessage?: string;
+    stripePaymentIntentId?: string;
+    paymentProvider?: 'stripe' | 'polar';
 }
 
 export class DeploymentRepository {

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@clerk/nextjs/server";
-import { deploymentService, stripeService, userService } from "@/services";
+import { deploymentService, polarService, userService } from "@/services";
 import { format } from "date-fns";
 import {
     Table,
@@ -31,6 +31,7 @@ interface Purchase {
     status: string;
     invoiceUrl: string | null;
     deploymentId: string;
+    receiptUrl: string | null;
 }
 
 export default async function PurchasesPage() {
@@ -55,63 +56,71 @@ export default async function PurchasesPage() {
     // Fetch all deployments for the internal user ID
     const deployments = await deploymentService.getUserDeployments(dbUser.id);
 
-    // Filter for deployments that have a Stripe session ID
-    const paidDeployments = deployments.filter((d) => d.stripeSessionId);
+    // Filter for deployments that have a payment session ID (Stripe or Polar)
+    const paidDeployments = deployments.filter((d) => d.stripeSessionId || d.polarId);
 
     if (paidDeployments.length > 0) {
         // console.log(`[Purchases] Sample Session ID: ${paidDeployments[0].stripeSessionId}`);
     }
 
-    // Fetch Stripe details for each deployment
+    // Fetch details for each deployment
     const purchases: Purchase[] = await Promise.all(
         paidDeployments.map(async (deployment) => {
-            try {
-                // Retrieve session and expand invoice
-                const session = await stripeService.stripe.checkout.sessions.retrieve(
-                    deployment.stripeSessionId,
-                    {
-                        expand: ["invoice"],
-                    }
-                );
+            // Handle Polar Payments
+            if (deployment.paymentProvider === 'polar' && deployment.polarId) {
+                try {
+                    const session = await polarService.getCheckoutSession(deployment.polarId);
 
-                // Extract invoice URL
-                let invoiceUrl: string | null = null;
-                if (session.invoice) {
-                    if (typeof session.invoice === "object") {
-                        invoiceUrl = session.invoice.hosted_invoice_url || session.invoice.invoice_pdf;
+                    if (!session) {
+                        throw new Error('Polar session not found');
                     }
+
+                    // Determing status
+                    const status = session.status;
+
+                    return {
+                        id: session.id,
+                        date: new Date(session.createdAt),
+                        description: `OpenClaw Deployment (${deployment.model})`,
+                        amount: session.totalAmount / 100, // Polar amounts are in cents
+                        currency: session.currency?.toUpperCase() || "USD",
+                        status: status,
+                        invoiceUrl: null, // Polar sends these via email
+                        receiptUrl: null, // Polar sends these via email
+                        deploymentId: deployment.id,
+                    };
+
+                } catch (error) {
+                    console.error(
+                        `[Purchases] Failed to fetch Polar session for deployment ${deployment.id}:`,
+                        error
+                    );
+                    return {
+                        id: deployment.polarId || 'unknown',
+                        date: deployment.createdAt,
+                        description: `OpenClaw Deployment (${deployment.model})`,
+                        amount: 29.0, // Fallback
+                        currency: "USD",
+                        status: "unknown",
+                        invoiceUrl: null,
+                        receiptUrl: null,
+                        deploymentId: deployment.id,
+                    };
                 }
-
-                // Determine status
-                const status = session.payment_status; // 'paid', 'unpaid', 'no_payment_required'
-
-                return {
-                    id: session.id,
-                    date: new Date(session.created * 1000),
-                    description: `OpenClaw Deployment (${deployment.model})`,
-                    amount: session.amount_total ? session.amount_total / 100 : 0,
-                    currency: session.currency?.toUpperCase() || "USD",
-                    status: status,
-                    invoiceUrl,
-                    deploymentId: deployment.id,
-                };
-            } catch (error) {
-                console.error(
-                    `[Purchases] Failed to fetch Stripe session for deployment ${deployment.id}:`,
-                    error
-                );
-                // Return a partial record or null (and filter later)
-                return {
-                    id: deployment.stripeSessionId,
-                    date: deployment.createdAt,
-                    description: `OpenClaw Deployment (${deployment.model})`,
-                    amount: 29.0, // Fallback
-                    currency: "USD",
-                    status: "unknown",
-                    invoiceUrl: null,
-                    deploymentId: deployment.id,
-                };
             }
+
+            // Legacy Stripe or other providers - render as unknown/legacy
+            return {
+                id: deployment.stripeSessionId || 'unknown',
+                date: deployment.createdAt,
+                description: `OpenClaw Deployment (${deployment.model})`,
+                amount: 0,
+                currency: "USD",
+                status: "legacy",
+                invoiceUrl: null,
+                receiptUrl: null,
+                deploymentId: deployment.id,
+            };
         })
     );
 
@@ -218,6 +227,21 @@ export default async function PurchasesPage() {
                                                         >
                                                             <Download className="mr-2 h-4 w-4" />
                                                             Invoice
+                                                        </Button>
+                                                    </a>
+                                                ) : purchase.receiptUrl ? (
+                                                    <a
+                                                        href={purchase.receiptUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
+                                                        >
+                                                            <FileText className="mr-2 h-4 w-4" />
+                                                            Receipt
                                                         </Button>
                                                     </a>
                                                 ) : (

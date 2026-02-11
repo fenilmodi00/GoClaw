@@ -14,11 +14,14 @@ export const users = sqliteTable(
   {
     // Primary identifier (UUID)
     id: text('id').primaryKey(),
-    
+
     // Clerk authentication
     clerkUserId: text('clerk_user_id').notNull().unique(),
     email: text('email').notNull().unique(),
-    
+
+    // Polar customer linking
+    polarCustomerId: text('polar_customer_id').unique(),
+
     // Timestamps
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
@@ -28,6 +31,8 @@ export const users = sqliteTable(
     clerkUserIdx: index('clerk_user_idx').on(table.clerkUserId),
     // Index on email for fast user lookups
     emailIdx: index('email_idx').on(table.email),
+    // Index on polar_customer_id for fast Polar lookups
+    polarCustomerIdx: index('polar_customer_idx').on(table.polarCustomerId),
   })
 );
 
@@ -54,34 +59,40 @@ export const deployments = sqliteTable(
   {
     // Primary identifier (UUID)
     id: text('id').primaryKey(),
-    
+
     // User information
     userId: text('user_id').notNull().references(() => users.id),
     email: text('email').notNull(),
-    
+
     // Deployment configuration
     model: text('model').notNull(), // 'claude-opus-4.5' | 'gpt-3.2' | 'gemini-3-flash'
     channel: text('channel').notNull(), // 'telegram' | 'discord' | 'whatsapp'
-    
+
     // Encrypted credentials
     channelToken: text('channel_token').notNull(), // encrypted
     channelApiKey: text('channel_api_key'), // encrypted, optional
-    
+
     // Akash deployment details (populated after deployment)
     akashDeploymentId: text('akash_deployment_id'),
     akashLeaseId: text('akash_lease_id'),
     providerUrl: text('provider_url'),
-    
+
     // Status tracking
     status: text('status').notNull(), // 'pending' | 'deploying' | 'active' | 'failed'
-    
-    // Stripe payment tracking
-    stripeSessionId: text('stripe_session_id').notNull(),
+
+    // Payment tracking
+    paymentProvider: text('payment_provider').notNull().default('stripe'), // 'stripe' | 'polar'
+
+    // Stripe
+    stripeSessionId: text('stripe_session_id'), // Now nullable
     stripePaymentIntentId: text('stripe_payment_intent_id'),
-    
+
+    // Polar.sh
+    polarId: text('polar_id'), // Checkout ID or Order ID
+
     // Error tracking
     errorMessage: text('error_message'),
-    
+
     // Timestamps
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
@@ -119,21 +130,21 @@ export const llmUsageLog = sqliteTable(
   {
     // Primary identifier (UUID)
     id: text('id').primaryKey(),
-    
+
     // User reference (required)
     userId: text('user_id')
       .notNull()
       .references(() => users.id),
-    
+
     // Deployment reference (optional - may be null for direct user API calls)
     deploymentId: text('deployment_id').references(() => deployments.id),
-    
+
     // Token usage tracking
     tokensUsed: integer('tokens_used').notNull(),
-    
+
     // LLM provider used for this call
     provider: text('provider').notNull(), // 'openai' | 'google' | 'claude' | 'akashml'
-    
+
     // Timestamp of the API call
     timestamp: integer('timestamp', { mode: 'timestamp' }).notNull(),
   },
