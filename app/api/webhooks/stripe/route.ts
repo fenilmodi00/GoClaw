@@ -1,14 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripeService } from '@/lib/stripe';
-import { deploymentService } from '@/services/deployment/deployment-service';
-import { 
-  generateSDL, 
-  createDeployment, 
-  pollForBids, 
-  selectCheapestBid, 
-  createLease,
-  extractServiceUrl
-} from '@/lib/akash';
+import { stripeService, akashService, deploymentService } from '@/services';
 import { logger } from '@/lib/logger';
 import Stripe from 'stripe';
 
@@ -28,7 +19,7 @@ import Stripe from 'stripe';
  */
 export async function POST(request: NextRequest) {
   logger.info('Stripe webhook received');
-  
+
   try {
     // Get raw body and signature
     const body = await request.text();
@@ -61,9 +52,9 @@ export async function POST(request: NextRequest) {
     // Process checkout.session.completed events (Requirement 3.4)
     if (event.type === 'checkout.session.completed') {
       logger.info('Processing checkout.session.completed event');
-      
+
       const session = event.data.object as Stripe.Checkout.Session;
-      
+
       // Extract session details
       const sessionId = session.id;
       const paymentIntentId = session.payment_intent as string;
@@ -93,8 +84,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      logger.info('Deployment found', { 
-        deploymentId: deployment.id, 
+      logger.info('Deployment found', {
+        deploymentId: deployment.id,
         email: deployment.email,
         model: deployment.model,
         channel: deployment.channel,
@@ -190,7 +181,7 @@ async function processDeployment(deploymentId: string): Promise<void> {
 
     // Step 3: Generate SDL configuration (Requirement 5.2)
     logger.debug('Generating SDL configuration');
-    const sdl = generateSDL({
+    const sdl = akashService.generateSDL({
       telegramBotToken,
       gatewayToken: '2002', // Fixed gateway token
     });
@@ -198,34 +189,34 @@ async function processDeployment(deploymentId: string): Promise<void> {
 
     // Step 4: Create deployment on Akash Network (Requirement 5.3)
     logger.info('Creating deployment on Akash Network');
-    const deploymentResponse = await createDeployment(sdl, akashApiKey, 5);
+    const deploymentResponse = await akashService.createDeployment(sdl, akashApiKey, 5);
     const { dseq, manifest } = deploymentResponse.data;
     logger.info('Deployment created', { dseq, manifestLength: manifest.length });
 
     // Step 5: Poll for provider bids (Requirement 5.4)
     logger.info('Polling for provider bids');
-    const bids = await pollForBids(dseq, akashApiKey);
+    const bids = await akashService.pollForBids(dseq, akashApiKey);
     logger.info('Received bids', { bidCount: bids.length });
 
     // Step 6: Select the lowest price bid (Requirement 5.5)
     logger.debug('Selecting cheapest bid');
-    const selectedBid = selectCheapestBid(bids);
+    const selectedBid = akashService.selectCheapestBid(bids);
     const provider = selectedBid.bid.id.provider;
     const price = selectedBid.bid.price;
     logger.info('Selected bid', { provider, price: `${price.amount} ${price.denom}` });
 
     // Step 7: Create lease with selected provider (Requirement 5.6)
     logger.info('Creating lease with provider', { provider, dseq });
-    const leaseResponse = await createLease(manifest, dseq, selectedBid, akashApiKey);
+    const leaseResponse = await akashService.createLease(manifest, dseq, selectedBid, akashApiKey);
     const leaseId = leaseResponse.data.leases[0].id;
-    logger.info('Lease created', { 
+    logger.info('Lease created', {
       leaseId: `${leaseId.dseq}-${leaseId.gseq}-${leaseId.oseq}`,
       state: leaseResponse.data.deployment.state
     });
 
     // Step 8: Extract service URL
     logger.debug('Extracting service URL');
-    const serviceUrl = extractServiceUrl(leaseResponse);
+    const serviceUrl = akashService.extractServiceUrl(leaseResponse);
     const providerUrl = serviceUrl || `https://console.akash.network/deployments/${dseq}`;
 
     if (serviceUrl) {
@@ -261,7 +252,7 @@ async function processDeployment(deploymentId: string): Promise<void> {
 
     // Step 10: Update status to "failed" with error message (Requirement 5.9)
     const errorMessage = error instanceof Error ? error.message : 'Unknown deployment error';
-    
+
     try {
       await deploymentService.updateDeploymentStatus(
         deploymentId,

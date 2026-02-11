@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as v from 'valibot';
-import { StatusQuerySchema } from '@/lib/validation';
-import { deploymentService } from '@/services/deployment/deployment-service';
-import { getTelegramBotLinkFromToken } from '@/lib/telegram';
+import { StatusQuerySchema } from '@/types/api';
+import { deploymentService, telegramService } from '@/services';
 
 /**
  * Generates a channel-specific connection link based on the channel type.
@@ -22,7 +21,7 @@ async function generateChannelLink(channel: string, channelToken?: string): Prom
       // For Telegram, fetch the bot username from Telegram API and construct the t.me link
       if (channelToken) {
         try {
-          const botLink = await getTelegramBotLinkFromToken(channelToken);
+          const botLink = await telegramService.getBotLinkFromToken(channelToken);
           return botLink;
         } catch (error) {
           console.error('Failed to fetch Telegram bot link:', error);
@@ -31,18 +30,18 @@ async function generateChannelLink(channel: string, channelToken?: string): Prom
         }
       }
       return 'https://t.me/';
-    
+
     case 'discord':
       // For Discord, users need to invite the bot to their server using the
       // OAuth2 URL with the bot's client ID. Since we don't store the client ID,
       // we provide instructions to access the Discord Developer Portal.
       return 'https://discord.com/developers/applications';
-    
+
     case 'whatsapp':
       // For WhatsApp Business API, users need to configure their phone number
       // and connect through the WhatsApp Business Platform.
       return 'https://business.whatsapp.com/';
-    
+
     default:
       return '';
   }
@@ -80,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     // Validate ID format using Valibot schema
     const validationResult = v.safeParse(StatusQuerySchema, { id });
-    
+
     if (!validationResult.success) {
       const errorMessage = validationResult.issues[0]?.message || 'Invalid deployment ID format';
       return NextResponse.json(

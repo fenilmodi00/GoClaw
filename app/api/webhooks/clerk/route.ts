@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Webhook } from 'svix';
-import { getUserService } from '@/services/user/user-service';
+import { userService } from '@/services';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/webhooks/clerk
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
 
     // Parse the event
     const eventType = evt.type;
-    console.log(`Received Clerk webhook event: ${eventType}`);
+    logger.info(`Received Clerk webhook event: ${eventType}`);
 
     // Handle user.created event
     if (eventType === 'user.created') {
@@ -89,15 +90,14 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      console.log(`Creating user for Clerk ID: ${clerkUserId}, email: ${email}`);
+      logger.info(`Creating user for Clerk ID: ${clerkUserId}, email: ${email}`);
 
-      // Initialize user service
-      const userService = getUserService();
+      // Use the injected userService
 
       try {
         // Create GoClaw user record
         const user = await userService.createUserFromClerk(clerkUserId, email);
-        console.log(`✅ User created: ${user.id}`);
+        logger.info(`✅ User created: ${user.id}`);
 
         // Return success response
         return NextResponse.json({
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
         });
       } catch (error) {
         console.error('Error processing user registration:', error);
-        
+
         // Return error response
         return NextResponse.json(
           {

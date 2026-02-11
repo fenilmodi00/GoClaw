@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth, clerkClient } from '@clerk/nextjs/server';
-import { deploymentService } from '@/services/deployment/deployment-service';
-import { userService } from '@/services/user/user-service';
+import { deploymentService, userService } from '@/services';
 import { logger } from '@/lib/logger';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit } from '@/middleware/rate-limit';
 
 /**
  * GET /api/deployments
@@ -84,7 +83,7 @@ export async function GET() {
     });
 
     // Return deployments without sensitive fields
-    const sanitizedDeployments = deployments.map(d => ({
+    const sanitizedDeployments = deployments.map((d) => ({
       id: d.id,
       model: d.model,
       channel: d.channel,

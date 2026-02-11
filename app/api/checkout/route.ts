@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as v from 'valibot';
-import { CheckoutSchema } from '@/lib/validation';
-import { deploymentService } from '@/services/deployment/deployment-service';
-import { stripeService } from '@/lib/stripe';
-import { userService } from '@/services/user/user-service';
+import { CheckoutSchema } from '@/types/api';
+import { deploymentService, stripeService, userService } from '@/services';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { logger } from '@/lib/logger';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit } from '@/middleware/rate-limit';
 
 /**
  * POST /api/checkout
