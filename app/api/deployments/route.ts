@@ -29,7 +29,7 @@ export async function GET() {
     }
 
     // Rate limit: 30 requests per user per 60 seconds
-    const rateLimitResult = rateLimit(`deployments:${clerkUserId}`, 30, 60_000);
+    const rateLimitResult = await rateLimit(`deployments:${clerkUserId}`, 30, 60_000);
     if (!rateLimitResult.success) {
       logger.warn('Deployments API: Rate limit exceeded', { clerkUserId });
       return NextResponse.json(

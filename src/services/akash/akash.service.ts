@@ -170,14 +170,16 @@ export interface AkashLeaseResponse {
  * @returns Sanitized string safe for SDL interpolation
  */
 function sanitizeEnvValue(value: string): string {
-  // Remove newlines, carriage returns, and null bytes that could inject YAML
-  return value.replace(/[\n\r\0]/g, '');
+  // Remove newlines, carriage returns, and null bytes
+  const clean = value.replace(/[\n\r\0]/g, '');
+  // Escape double quotes and backslashes for YAML double-quoted string
+  return clean.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 /**
  * Base URL for Akash Console API
  */
-const AKASH_CONSOLE_API_BASE = 'https://console-api.akash.network';
+const AKASH_CONSOLE_API_BASE = process.env.AKASH_CONSOLE_API_URL || 'https://console-api.akash.network';
 
 /**
  * Maximum number of polling attempts for bids
@@ -207,9 +209,6 @@ export class AkashService {
   /**
    * Generates the SDL (Stack Definition Language) configuration for Akash deployment.
    * interpolates sensitive tokens and configuration values into the YAML template.
-   * 
-   * WARNING: The AKASHML_KEY is currently baked into the SDL, which is a security risk.
-   * TODO: Move AKASHML_KEY to a separate secret management system or use Akash secrets.
    */
   generateSDL(params: { telegramBotToken: string; gatewayToken?: string }): string {
     const { telegramBotToken, gatewayToken = '2002' } = params;
@@ -417,23 +416,8 @@ export class AkashService {
   }
 }
 
-// Lazy-loaded singleton instance
-let _akashService: AkashService | null = null;
-
-export function getAkashService(): AkashService {
-  if (!_akashService) {
-    _akashService = new AkashService();
-  }
-  return _akashService;
-}
-
-// Export singleton proxy
-export const akashService = new Proxy({} as AkashService, {
-  get(_target, prop) {
-    const service = getAkashService();
-    return service[prop as keyof AkashService];
-  }
-});
+// Singleton instance
+export const akashService = new AkashService();
 
 // Backward compatibility exports
 export const generateSDL = (params: SDLParams) => akashService.generateSDL(params);

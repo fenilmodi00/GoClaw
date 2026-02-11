@@ -14,35 +14,8 @@
  * ```
  */
 
-const store = new Map<string, number[]>();
-
-/**
- * Clean up expired entries periodically to prevent memory leaks.
- * Runs every 60 seconds.
- */
-const CLEANUP_INTERVAL_MS = 60_000;
-
-let cleanupTimer: ReturnType<typeof setInterval> | null = null;
-
-function startCleanup() {
-    if (cleanupTimer) return;
-    cleanupTimer = setInterval(() => {
-        const now = Date.now();
-        for (const [key, timestamps] of store.entries()) {
-            const filtered = timestamps.filter((t) => now - t < 120_000); // Keep 2 min max
-            if (filtered.length === 0) {
-                store.delete(key);
-            } else {
-                store.set(key, filtered);
-            }
-        }
-    }, CLEANUP_INTERVAL_MS);
-
-    // Allow the process to exit even if the timer is running
-    if (cleanupTimer && typeof cleanupTimer === 'object' && 'unref' in cleanupTimer) {
-        cleanupTimer.unref();
-    }
-}
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 export interface RateLimitResult {
     success: boolean;
@@ -51,34 +24,82 @@ export interface RateLimitResult {
     resetMs: number;
 }
 
+// Create a new ratelimiter, that loosely slides the window
+// from the current time to the last window size.
+// 
+// Use a fallback if Redis is not configured (for dev/build)
+let ratelimit: Ratelimit | null = null;
+
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    ratelimit = new Ratelimit({
+        redis: Redis.fromEnv(),
+        limiter: Ratelimit.slidingWindow(10, "10 s"), // Default, overridden per call
+        analytics: true,
+        prefix: "@upstash/ratelimit",
+    });
+} else {
+    console.warn("UPSTASH_REDIS_REST_URL or TOKEN missing, falling back to in-memory rate limiting (not recommended for production)");
+}
+
+// In-memory fallback
+const memoryStore = new Map<string, number[]>();
+
 /**
  * Check if a request should be allowed under the rate limit.
- *
- * @param key - Unique identifier for the rate limit bucket (e.g. `checkout:user_123`)
+ * 
+ * @param key - Unique identifier for the rate limit bucket
  * @param limit - Maximum number of requests allowed within the window
  * @param windowMs - Time window in milliseconds
- * @returns Object with `success` (whether request is allowed), `remaining` count, and `resetMs`
  */
-export function rateLimit(
+export async function rateLimit(
     key: string,
     limit: number,
     windowMs: number
-): RateLimitResult {
-    startCleanup();
+): Promise<RateLimitResult> {
+    // 1. Try Upstash Redis
+    if (ratelimit) {
+        try {
+            // Convert windowMs to seconds or duration string for Upstash
+            // Upstash accepts "10 s", "1 m" etc. or seconds.
+            // But the instance is created with a default. 
+            // We can create specific limiters on the fly or just use a shared instance if we accept the default algorithm.
+            // To support dynamic limits/windows effectively with this library, we might need to instantiate per call or cache instances.
+            // For simplicity and performance, we'll use a new instance if the window differs significantly, or just use the slidingWindow logic.
 
+            // Actually, Ratelimit instance is tied to an algorithm.
+            // Let's create a new limiter for this specific call's requirements if acceptable, 
+            // IS EXPENSIVE to create new Redis connections? No, Redis.fromEnv() is cheap (HTTP client).
+            // But Ratelimit object might have overhead.
+
+            const dynamicLimiter = new Ratelimit({
+                redis: Redis.fromEnv(),
+                limiter: Ratelimit.slidingWindow(limit, `${Math.ceil(windowMs / 1000)} s`),
+                analytics: true,
+                prefix: "@upstash/ratelimit",
+            });
+
+            const { success, limit: l, remaining, reset } = await dynamicLimiter.limit(key);
+
+            return {
+                success,
+                limit: l,
+                remaining,
+                resetMs: reset - Date.now(),
+            };
+        } catch (error) {
+            console.error("Rate limit error (Redis), falling back to memory:", error);
+        }
+    }
+
+    // 2. Fallback to In-Memory
     const now = Date.now();
     const windowStart = now - windowMs;
 
-    // Get existing timestamps and filter to current window
-    const timestamps = (store.get(key) || []).filter((t) => t > windowStart);
+    const timestamps = (memoryStore.get(key) || []).filter((t) => t > windowStart);
 
     if (timestamps.length >= limit) {
-        // Rate limited — calculate when the oldest request in the window expires
         const oldestInWindow = timestamps[0];
         const resetMs = oldestInWindow + windowMs - now;
-
-        store.set(key, timestamps);
-
         return {
             success: false,
             remaining: 0,
@@ -87,9 +108,8 @@ export function rateLimit(
         };
     }
 
-    // Allow the request
     timestamps.push(now);
-    store.set(key, timestamps);
+    memoryStore.set(key, timestamps);
 
     return {
         success: true,

@@ -48,6 +48,11 @@ function validateEnvironment(): void {
     'CLERK_WEBHOOK_SECRET',
     'AKASH_CONSOLE_API_URL',
     'AKASH_API_KEY',
+    'AKASHML_KEY',
+    'UPSTASH_REDIS_REST_URL',
+    'UPSTASH_REDIS_REST_TOKEN',
+    'POLAR_ACCESS_TOKEN',
+    'POLAR_WEBHOOK_SECRET',
   ];
 
   const missing = required.filter((key) => !process.env[key]);

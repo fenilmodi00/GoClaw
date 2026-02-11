@@ -1,5 +1,6 @@
 import { getDeploymentRepository, type CreateDeploymentInput, type UpdateDeploymentStatusInput, type DeploymentStatus } from '@/db/repositories/deployment-repository';
 import type { Deployment } from '@/db/schema';
+import { cacheService } from '../cache/cache.service';
 
 /**
  * DeploymentService - Business logic layer for deployment management
@@ -19,7 +20,13 @@ export class DeploymentService {
    * Creates a new deployment
    */
   async createDeployment(input: CreateDeploymentInput): Promise<Deployment> {
-    return this.deploymentRepository.create(input);
+    const clawApiKey = crypto.randomUUID();
+    const deployment = await this.deploymentRepository.create({ ...input, clawApiKey });
+
+    // Invalidate cache
+    await cacheService.delete(`deployments:${input.userId}`);
+
+    return deployment;
   }
 
   /**
@@ -35,7 +42,19 @@ export class DeploymentService {
    * Gets all deployments for a user
    */
   async getUserDeployments(userId: string): Promise<Deployment[]> {
-    return this.deploymentRepository.findByUserId(userId);
+    const cacheKey = `deployments:${userId}`;
+    const cached = await cacheService.get<Deployment[]>(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    const deployments = await this.deploymentRepository.findByUserId(userId);
+
+    // Cache for 30 seconds
+    await cacheService.set(cacheKey, deployments, 30);
+
+    return deployments;
   }
 
   /**
@@ -64,24 +83,14 @@ export class DeploymentService {
     status: DeploymentStatus,
     details?: UpdateDeploymentStatusInput
   ): Promise<void> {
-    return this.deploymentRepository.updateStatus(id, status, details);
+    await this.deploymentRepository.updateStatus(id, status, details);
+
+    const deployment = await this.getDeploymentById(id);
+    if (deployment) {
+      await cacheService.delete(`deployments:${deployment.userId}`);
+    }
   }
 }
 
 // Singleton instance
-let _deploymentService: DeploymentService | null = null;
-
-export function getDeploymentService(): DeploymentService {
-  if (!_deploymentService) {
-    _deploymentService = new DeploymentService();
-  }
-  return _deploymentService;
-}
-
-// Export singleton proxy
-export const deploymentService = new Proxy({} as DeploymentService, {
-  get(_target, prop) {
-    const service = getDeploymentService();
-    return service[prop as keyof DeploymentService];
-  }
-});
+export const deploymentService = new DeploymentService();

@@ -1,10 +1,10 @@
-
 import { auth } from '@clerk/nextjs/server';
 import { userService } from '@/services/user/user.service';
 import { polarService } from '@/services/polar/polar.service';
 import BillingClient from './billing-client';
 import { calculateRemainingBalance, BillingRates } from '@/lib/billing';
 import { TopUpButton } from '@/components/features/billing/TopUpButton';
+import { CustomerMeter } from '@polar-sh/sdk/models/components/customermeter';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +23,7 @@ export default async function BillingPage() {
         // Validate UUID to avoid 422 errors from Polar SDK
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(user.polarCustomerId)) {
-            console.warn(`Invalid Polar Customer ID for user ${userId}: ${user.polarCustomerId}`);
+            console.warn(`Invalid Polar Customer ID for user ${userId}`);
             // Return default balance if ID is invalid, do not attempt fetch
         } else {
             try {
@@ -33,13 +33,17 @@ export default async function BillingPage() {
                 // Find 'ai_usage' meter
                 // We assume the meter name is 'ai_usage' or similar.
                 // Also checking if there are specific credit meters.
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const usageMeter = meters.find((m: any) => m.name === 'ai_usage' || m.slug === 'ai_usage');
+
+
+                // ...
+
+                // Find 'ai_usage' meter
+                // We assume the meter name is 'ai_usage' or similar.
+                const usageMeter = meters.find((m: CustomerMeter) => m.meter.name === 'ai_usage');
 
                 if (usageMeter) {
-                    // usageMeter.amount is likely the usage count (tokens)
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const usageTokens = Number((usageMeter as any).amount || 0);
+                    // usageMeter.consumedUnits is the usage count (tokens)
+                    const usageTokens = Number(usageMeter.consumedUnits || 0);
 
                     balance = calculateRemainingBalance(usageTokens);
                 }

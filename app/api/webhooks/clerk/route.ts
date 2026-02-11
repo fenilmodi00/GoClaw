@@ -108,10 +108,10 @@ export async function POST(req: NextRequest) {
         console.error('Error processing user registration:', error);
 
         // Return error response
+        // Do not leak internal error details to the caller
         return NextResponse.json(
           {
             error: 'Failed to process user registration',
-            message: error instanceof Error ? error.message : 'Unknown error',
           },
           { status: 500 }
         );
@@ -126,7 +126,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );

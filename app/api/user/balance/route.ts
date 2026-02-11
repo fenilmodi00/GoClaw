@@ -22,7 +22,7 @@ export async function GET() {
             // Validate UUID to avoid 422 errors from Polar SDK
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             if (!uuidRegex.test(user.polarCustomerId)) {
-                console.warn(`Invalid Polar Customer ID for user ${userId}: ${user.polarCustomerId}`);
+                console.warn(`Invalid Polar Customer ID for user ${userId}`);
                 // Return default balance if ID is invalid
                 return NextResponse.json({ balance });
             }
@@ -32,11 +32,21 @@ export async function GET() {
 
                 // Find 'ai_usage' meter
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const usageMeter = meters.find((m: any) => m.name === 'ai_usage' || m.slug === 'ai_usage');
+                const usageMeter = meters.find((m: any) => m.name === 'ai_usage' || m.slug === 'ai_usage' || (m.meter && m.meter.name === 'ai_usage'));
 
                 if (usageMeter) {
                     // usageMeter.consumedUnits is the usage count (tokens)
-                    const usageTokens = Number(usageMeter.consumedUnits || 0);
+                    // If usageMeter has a 'customer' property with 'usage' or similar structure from SDK
+                    // The 'consumedUnits' might be top level or inside.
+                    // Based on previous fixes, we should be careful.
+                    // Let's assume standard object access.
+                    // If it's the `CustomerMeter` type from SDK:
+                    // export type CustomerMeter = { ... meter: Meter ... }
+
+                    // Let's rely on standard access first.
+                    // However, we see `usageMeter.consumedUnits` usage below.
+                    const val = (usageMeter as any).consumedUnits || (usageMeter as any).usage || 0;
+                    const usageTokens = Number(val);
                     balance = calculateRemainingBalance(usageTokens);
                 }
             } catch (error) {

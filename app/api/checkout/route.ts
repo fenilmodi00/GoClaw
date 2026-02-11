@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limit: 5 checkout requests per user per 60 seconds
-    const rateLimitResult = rateLimit(`checkout:${clerkUserId}`, 5, 60_000);
+    const rateLimitResult = await rateLimit(`checkout:${clerkUserId}`, 5, 60_000);
     if (!rateLimitResult.success) {
       logger.warn('Checkout API: Rate limit exceeded', { clerkUserId });
       return NextResponse.json(

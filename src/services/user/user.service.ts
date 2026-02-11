@@ -58,20 +58,5 @@ export class UserService {
   }
 }
 
-// Lazy-loaded singleton instance
-let _userService: UserService | null = null;
-
-export function getUserService(): UserService {
-  if (!_userService) {
-    _userService = new UserService();
-  }
-  return _userService;
-}
-
-// Export a singleton instance for use throughout the application
-export const userService = new Proxy({} as UserService, {
-  get(_target, prop) {
-    const service = getUserService();
-    return service[prop as keyof UserService];
-  }
-});
+// Singleton instance
+export const userService = new UserService();

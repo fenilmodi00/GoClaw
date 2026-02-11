@@ -83,23 +83,8 @@ export class TelegramService {
   }
 }
 
-// Lazy-loaded singleton instance
-let _telegramService: TelegramService | null = null;
-
-export function getTelegramService(): TelegramService {
-  if (!_telegramService) {
-    _telegramService = new TelegramService();
-  }
-  return _telegramService;
-}
-
-// Export a lazy-loaded singleton instance for use across the application
-export const telegramService = new Proxy({} as TelegramService, {
-  get(_target, prop) {
-    const service = getTelegramService();
-    return service[prop as keyof TelegramService];
-  }
-});
+// Singleton instance
+export const telegramService = new TelegramService();
 
 // For backward compatibility or specific functional use cases
 export const getTelegramBotInfo = (token: string) => telegramService.getBotInfo(token);

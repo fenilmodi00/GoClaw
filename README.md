@@ -179,6 +179,18 @@ turso db tokens create goclaw
 4. Configure the webhook to listen for `checkout.session.completed` events
 5. Copy the webhook secret to your environment variables
 
+### Upstash Redis Setup (Rate Limiting)
+
+Upstash provides serverless Redis for rate limiting.
+
+1. Create an account at [upstash.com](https://upstash.com)
+2. Create a new Redis database
+3. In the database details, find the **REST API** section
+4. Copy the `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
+5. Add them to your `.env` file
+
+**Cost**: Upstash has a free tier (10,000 requests/day) which is sufficient for development and small-scale production.
+
 ## Testing Strategy
 
 GoClaw uses a dual testing approach:

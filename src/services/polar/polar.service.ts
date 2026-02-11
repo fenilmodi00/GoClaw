@@ -3,6 +3,7 @@ import { Webhook } from 'standardwebhooks';
 import { Checkout } from '@polar-sh/sdk/models/components/checkout';
 import { Customer } from '@polar-sh/sdk/models/components/customer';
 import { CustomerMeter } from '@polar-sh/sdk/models/components/customermeter';
+import { cacheService } from '../cache/cache.service';
 
 /**
  * PolarService handles all Polar.sh payment operations for GoClaw.
@@ -168,6 +169,9 @@ export class PolarService {
                     }
                 ]
             });
+
+            // Invalidate meter cache for this customer
+            await cacheService.delete(`polar:meters:${polarCustomerId}`);
         } catch (error) {
             // Log but don't crash the flow usually, but here we might want to know
             const err = error as Error;
@@ -181,26 +185,30 @@ export class PolarService {
      * 
      * @param customerId - Polar Customer ID
      */
+    /**
+     * Gets customer meter balance
+     * 
+     * @param customerId - Polar Customer ID
+     */
     async getCustomerMeters(customerId: string): Promise<CustomerMeter[]> {
+        const cacheKey = `polar:meters:${customerId}`;
+        const cached = await cacheService.get<CustomerMeter[]>(cacheKey);
+
+        if (cached) {
+            return cached;
+        }
+
         try {
             const response = await this.polar.customerMeters.list({
-                customerId: [customerId], // API expects array usually
+                customerId: [customerId],
             });
-            // The SDK might return an object with 'items' or just the list/paginated response.
-            // Based on list_meters logs, it returns a paginated response potentially.
-            // Let's assume it returns an async iterable or a response object with .result or just list.
-            // Checking typical Polar SDK usage:
-            // for await (const page of response) { ... } or response.result.items
-
-            // For now, let's assume it returns the response object which usually has 'result' or 'items'.
-            // If it's the v0.43 SDK, looking at the previous file content, `checkouts.create` returned a Promise<Checkout>.
-            // So `customerMeters.list` probably returns Promise<ListResourceCustomerMeter>.
-
-            // Safe bet: return whatever it returns for now or map it if we can see the type.
-            // But let's look at the type of response locally if possible.
-            // I'll return 'any' to be safe for now until I verifying.
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (response as any).items || [];
+            const meters = (response as any).items || [];
+
+            // Cache for 1 minute (short TTL for near real-time updates)
+            await cacheService.set(cacheKey, meters, 60);
+
+            return meters;
         } catch (error) {
             console.error('Failed to get customer meters:', error);
             return [];
@@ -225,19 +233,5 @@ export class PolarService {
     }
 }
 
-// Lazy-loaded singleton instance
-let _polarService: PolarService | null = null;
-
-export function getPolarService(): PolarService {
-    if (!_polarService) {
-        _polarService = new PolarService();
-    }
-    return _polarService;
-}
-
-export const polarService = new Proxy({} as PolarService, {
-    get(_target, prop) {
-        const service = getPolarService();
-        return service[prop as keyof PolarService];
-    }
-});
+// Singleton instance
+export const polarService = new PolarService();

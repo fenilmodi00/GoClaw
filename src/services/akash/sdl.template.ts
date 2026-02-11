@@ -1,13 +1,13 @@
 export interface SDLTemplateParams {
-    akashmlApiKey: string;
-    safeBotToken: string;
-    safeGatewayToken: string;
+  akashmlApiKey: string;
+  safeBotToken: string;
+  safeGatewayToken: string;
 }
 
 export const generateSDLTemplate = (params: SDLTemplateParams): string => {
-    const { akashmlApiKey, safeBotToken, safeGatewayToken } = params;
+  const { akashmlApiKey, safeBotToken, safeGatewayToken } = params;
 
-    return `version: "2.0"
+  return `version: "2.0"
 
 services:
   openclaw:
@@ -26,16 +26,16 @@ services:
       - TERM=xterm-256color
       - MODEL_ID=meta-llama/Llama-3.3-70B-Instruct
       - BASE_URL=https://api.akashml.com/v1
-      - API_KEY=${akashmlApiKey}
+      - API_KEY="${akashmlApiKey}"
       - API_PROTOCOL=openai-completions
       - CONTEXT_WINDOW=200000
       - MAX_TOKENS=8192
       - WORKSPACE=/home/node/.openclaw/workspace
-      - OPENCLAW_GATEWAY_TOKEN=${safeGatewayToken}
+      - OPENCLAW_GATEWAY_TOKEN="${safeGatewayToken}"
       - OPENCLAW_GATEWAY_BIND=lan
       - OPENCLAW_GATEWAY_PORT=18789
       - OPENCLAW_BRIDGE_PORT=18790
-      - TELEGRAM_BOT_TOKEN=${safeBotToken}
+      - TELEGRAM_BOT_TOKEN="${safeBotToken}"
       - TELEGRAM_ENABLED=true
     params:
       storage:

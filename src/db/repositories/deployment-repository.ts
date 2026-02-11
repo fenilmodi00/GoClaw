@@ -16,6 +16,7 @@ export interface CreateDeploymentInput {
     stripeSessionId?: string;
     paymentProvider?: 'stripe' | 'polar';
     polarId?: string;
+    clawApiKey?: string;
 }
 
 export interface UpdateDeploymentStatusInput {

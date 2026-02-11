@@ -72,6 +72,9 @@ export const deployments = sqliteTable(
     channelToken: text('channel_token').notNull(), // encrypted
     channelApiKey: text('channel_api_key'), // encrypted, optional
 
+    // Secure deployment credentials
+    clawApiKey: text('claw_api_key').unique(), // authenticates the deployed bot against our proxy
+
     // Akash deployment details (populated after deployment)
     akashDeploymentId: text('akash_deployment_id'),
     akashLeaseId: text('akash_lease_id'),

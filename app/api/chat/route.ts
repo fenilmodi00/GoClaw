@@ -1,20 +1,51 @@
-
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { userService } from '@/services/user/user.service';
 import { polarService } from '@/services/polar/polar.service';
 import { calculateRemainingBalance } from '@/lib/billing';
+import { rateLimit } from '@/middleware/rate-limit';
+import * as v from 'valibot';
+import { CustomerMeter } from '@polar-sh/sdk/models/components/customermeter';
 
 const AKASHML_BASE_URL = 'https://api.akashml.com/v1';
+// ...
+
+// ...
+
 // In production, use your actual key. 
 // Note: AKASHML_KEY is used by the deployed bot too.
 const AKASHML_API_KEY = process.env.AKASHML_KEY;
+
+// Validation Schema
+const MessageSchema = v.object({
+    role: v.string(),
+    content: v.string(),
+});
+
+const ChatRequestSchema = v.object({
+    messages: v.array(MessageSchema),
+    model: v.string(),
+    max_tokens: v.optional(v.number()),
+    temperature: v.optional(v.number()),
+});
 
 export async function POST(req: Request) {
     try {
         const { userId } = await auth();
         if (!userId) {
             return new NextResponse("Unauthorized", { status: 401 });
+        }
+
+        // Check Content-Length (Max 1MB)
+        const contentLength = parseInt(req.headers.get('content-length') || '0');
+        if (contentLength > 1024 * 1024) {
+            return new NextResponse("Payload too large", { status: 413 });
+        }
+
+        // Rate Limiting (60 req/min)
+        const rateLimitResult = await rateLimit(`chat:${userId}`, 60, 60_000);
+        if (!rateLimitResult.success) {
+            return new NextResponse("Too Many Requests", { status: 429 });
         }
 
         const user = await userService.getUserByClerkId(userId);
@@ -35,7 +66,7 @@ export async function POST(req: Request) {
         // Validate UUID
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(user.polarCustomerId)) {
-            console.warn(`Invalid Polar Customer ID for user ${userId}: ${user.polarCustomerId}`);
+            console.warn(`Invalid Polar Customer ID for user ${userId}`);
             // Start fresh or error? For now, let's block to prevent unmetered usage if ID is bad.
             // Or allow if we think it's a seed user.
             // Better to block and force them to contact support or fix logic.
@@ -46,8 +77,13 @@ export async function POST(req: Request) {
 
         // Find 'ai_usage' meter
         // We look for the meter that tracks our AI usage events
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const usageMeter = meters.find((m: any) => m.meter?.slug === 'ai_usage' || m.meter?.name === 'ai_usage');
+
+
+        // ...
+
+        // Find 'ai_usage' meter
+        // We look for the meter that tracks our AI usage events
+        const usageMeter = meters.find((m: CustomerMeter) => m.meter.name === 'ai_usage');
 
         if (usageMeter) {
             const usageTokens = Number(usageMeter.consumedUnits || 0);
@@ -58,7 +94,14 @@ export async function POST(req: Request) {
             }
         }
 
-        const body = await req.json();
+        const json = await req.json();
+
+        // Validate Request Body
+        const result = v.safeParse(ChatRequestSchema, json);
+        if (!result.success) {
+            return new NextResponse("Invalid request body", { status: 400 });
+        }
+        const body = result.output;
 
         // Forward to AkashML
         if (!AKASHML_API_KEY) {
@@ -76,8 +119,9 @@ export async function POST(req: Request) {
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            return new NextResponse(`Upstream API error: ${response.status} ${errorText}`, { status: response.status });
+            // Sanitize upstream error
+            console.error(`Upstream API error: ${response.status}`, await response.text());
+            return new NextResponse("Provider error", { status: 502 });
         }
 
         const data = await response.json();
