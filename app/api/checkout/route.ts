@@ -105,8 +105,19 @@ export async function POST(request: NextRequest) {
           oldClerkId: existingUserByEmail.clerkUserId,
           newClerkId: clerkUserId
         });
-        // Use the existing user record
-        user = existingUserByEmail;
+
+        // Persist the new Clerk ID to the database (Crucial for webhook lookup)
+        const updatedUser = await userService.updateClerkId(existingUserByEmail.id, clerkUserId);
+
+        if (updatedUser) {
+          // Use the updated user record
+          user = updatedUser;
+          logger.info('User account linked successfully', { userId: user.id });
+        } else {
+          logger.error('Failed to update Clerk ID for existing user', { userId: existingUserByEmail.id });
+          // Fallback to existing user, but this might cause issues downstream if webhook relies on new ID
+          user = existingUserByEmail;
+        }
       } else {
         user = await userService.createUserFromClerk(clerkUserId, userEmail);
         logger.info('User created', { userId: user.id });
@@ -186,16 +197,45 @@ export async function POST(request: NextRequest) {
       polarCustomerId = undefined; // Fallback to creating new customer/guest checkout
     }
 
-    const session = await polarService.createCheckoutSession({
-      email: userEmail,
-      deploymentId: deploymentId,
-      successUrl,
-      customerId: polarCustomerId, // Integrate with DB: Link checkout to existing Polar customer
-      metadata: {
-        userId: user.id, // Internal DB ID
-        clerkUserId: clerkUserId, // Clerk ID for backup
-      },
-    });
+    let session;
+    try {
+      session = await polarService.createCheckoutSession({
+        email: userEmail,
+        deploymentId: deploymentId,
+        successUrl,
+        customerId: polarCustomerId, // Integrate with DB: Link checkout to existing Polar customer
+        metadata: {
+          userId: user.id, // Internal DB ID
+          clerkUserId: clerkUserId, // Clerk ID for backup
+        },
+      });
+    } catch (error) {
+      const err = error as Error;
+      // Check for "Customer does not exist" error from Polar
+      if (err.message && (err.message.includes('Customer does not exist') || err.message.includes('Resource not found'))) {
+        logger.warn('Stale Polar Customer ID found, creating new customer and retrying', { oldPolarCustomerId: polarCustomerId });
+
+        // Create new Polar customer
+        const newPolarCustomer = await polarService.createCustomer(userEmail, undefined, clerkUserId);
+
+        // Update user in DB
+        await userService.updatePolarCustomerId(user.id, newPolarCustomer.id);
+
+        // Retry checkout creation with new ID
+        session = await polarService.createCheckoutSession({
+          email: userEmail,
+          deploymentId: deploymentId,
+          successUrl,
+          customerId: newPolarCustomer.id,
+          metadata: {
+            userId: user.id,
+            clerkUserId: clerkUserId,
+          },
+        });
+      } else {
+        throw error; // Re-throw other errors
+      }
+    }
     logger.info('Polar session created', { sessionId: session.id });
 
     logger.debug('Creating deployment record');

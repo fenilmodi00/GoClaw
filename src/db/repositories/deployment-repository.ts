@@ -69,6 +69,18 @@ export class DeploymentRepository {
     }
 
     /**
+     * Finds a deployment by Polar ID (checkout ID, subscription ID, or order ID)
+     */
+    async findByPolarId(polarId: string): Promise<Deployment | null> {
+        const results = await db
+            .select()
+            .from(deployments)
+            .where(eq(deployments.polarId, polarId))
+            .limit(1);
+        return results[0] || null;
+    }
+
+    /**
      * Gets all deployments for a specific user
      */
     async findByUserId(userId: string): Promise<Deployment[]> {

@@ -11,7 +11,7 @@ export const generateSDLTemplate = (params: SDLTemplateParams): string => {
 
 services:
   openclaw:
-    image: ghcr.io/fenilmodi00/openclaw:latest
+    image: ghcr.io/fenilmodi00/openclaw-docker:main-0a3827a
     expose:
       - port: 18789
         as: 80
@@ -26,16 +26,16 @@ services:
       - TERM=xterm-256color
       - MODEL_ID=meta-llama/Llama-3.3-70B-Instruct
       - BASE_URL=https://api.akashml.com/v1
-      - API_KEY="${akashmlApiKey}"
+      - API_KEY=${akashmlApiKey}
       - API_PROTOCOL=openai-completions
       - CONTEXT_WINDOW=200000
       - MAX_TOKENS=8192
       - WORKSPACE=/home/node/.openclaw/workspace
-      - OPENCLAW_GATEWAY_TOKEN="${safeGatewayToken}"
+      - OPENCLAW_GATEWAY_TOKEN=${safeGatewayToken}
       - OPENCLAW_GATEWAY_BIND=lan
       - OPENCLAW_GATEWAY_PORT=18789
       - OPENCLAW_BRIDGE_PORT=18790
-      - TELEGRAM_BOT_TOKEN="${safeBotToken}"
+      - TELEGRAM_BOT_TOKEN=${safeBotToken}
       - TELEGRAM_ENABLED=true
     params:
       storage:

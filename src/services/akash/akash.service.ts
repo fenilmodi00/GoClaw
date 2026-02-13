@@ -143,7 +143,7 @@ export interface AkashLeaseResponse {
  * for deploying an OpenClaw bot with Telegram integration.
  * 
  * The SDL defines:
- * - Container image (ghcr.io/fenilmodi00/openclaw:latest)
+ * - Container image (ghcr.io/fenilmodi00/openclaw-docker:main-0a3827a)
  * - Environment variables for AkashML API and Telegram bot
  * - Model: meta-llama/Llama-3.3-70B-Instruct via AkashML
  * - Two exposed ports: 18789 (gateway) and 18790 (bridge)

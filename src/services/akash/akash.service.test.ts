@@ -13,9 +13,9 @@ describe('AkashService', () => {
 
             const sdl = service.generateSDL(params);
 
-            expect(sdl).toContain('TELEGRAM_BOT_TOKEN="123456:ABC-DEF"');
-            expect(sdl).toContain('OPENCLAW_GATEWAY_TOKEN="test-gateway-token"');
-            expect(sdl).toContain('image: ghcr.io/fenilmodi00/openclaw:latest');
+            expect(sdl).toContain('TELEGRAM_BOT_TOKEN=123456:ABC-DEF');
+            expect(sdl).toContain('OPENCLAW_GATEWAY_TOKEN=test-gateway-token');
+            expect(sdl).toContain('image: ghcr.io/fenilmodi00/openclaw-docker:main-0a3827a');
         });
 
         it('should escape special characters in tokens', () => {
@@ -27,7 +27,7 @@ describe('AkashService', () => {
             const sdl = service.generateSDL(params);
 
             // Expect escaped quotes and backslashes
-            expect(sdl).toContain('TELEGRAM_BOT_TOKEN="123456:ABC\\"DEF\\\\GHI"');
+            expect(sdl).toContain('TELEGRAM_BOT_TOKEN=123456:ABC\\"DEF\\\\GHI');
         });
     });
 });

@@ -30,6 +30,40 @@ export class DeploymentService {
   }
 
   /**
+   * Triggers the actual Akash deployment process
+   */
+  async deploy(deployment: Deployment): Promise<void> {
+    // 1. Update status to deploying
+    await this.updateDeploymentStatus(deployment.id, 'deploying');
+
+    try {
+      // 2. Call Akash Service
+      // We need to fetch the user's plan or default to some deposit amount
+      // For now using default $5
+      const result = await import('../akash/akash.service').then(m => m.akashService.deployBot({
+        akashApiKey: process.env.AKASH_API_KEY!, // Master wallet key for now
+        telegramBotToken: deployment.channelToken,
+        gatewayToken: undefined, // Default
+      }));
+
+      // 3. Update status to active
+      await this.updateDeploymentStatus(deployment.id, 'active', {
+        akashDeploymentId: result.dseq,
+        providerUrl: result.serviceUrl || undefined,
+      });
+
+    } catch (error) {
+      console.error('Deployment failed:', error);
+      const err = error as Error;
+      // 4. Update status to failed
+      await this.updateDeploymentStatus(deployment.id, 'failed', {
+        errorMessage: err.message
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Finds deployment by ID
    */
   async getDeploymentById(id: string): Promise<Deployment | null> {

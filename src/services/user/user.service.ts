@@ -20,6 +20,35 @@ export class UserService {
    * Creates a new user from Clerk authentication
    */
   async createUserFromClerk(clerkUserId: string, email: string): Promise<User> {
+    // 1. Check if user already exists by email
+    const existingUser = await this.userRepository.findByEmail(email);
+
+    if (existingUser) {
+      console.log(`User with email ${email} already exists. Linking new Clerk ID.`);
+      // Update the existing user with the new Clerk ID
+      const updatedUser = await this.userRepository.update(existingUser.id, {
+        clerkUserId,
+        // Ensure polarCustomerId is set if we have it (though we might not want to overwrite if null, logic below handles creation)
+      });
+
+      if (!updatedUser) {
+        throw new Error(`Failed to update user ${existingUser.id}`);
+      }
+
+      // Ensure Polar Customer is linked if missing
+      if (!updatedUser.polarCustomerId) {
+        try {
+          const polarCustomer = await polarService.createCustomer(email, undefined, clerkUserId);
+          return (await this.userRepository.update(updatedUser.id, { polarCustomerId: polarCustomer.id })) || updatedUser;
+        } catch (err) {
+          console.error('Failed to link Polar customer during account linking:', err);
+        }
+      }
+
+      return updatedUser;
+    }
+
+    // 2. Create new user if not exists
     let polarCustomerId: string | undefined;
     try {
       const polarCustomer = await polarService.createCustomer(email, undefined, clerkUserId);
@@ -61,6 +90,13 @@ export class UserService {
    */
   async updatePolarCustomerId(userId: string, polarCustomerId: string): Promise<User | undefined> {
     return this.userRepository.update(userId, { polarCustomerId });
+  }
+
+  /**
+   * Updates the Clerk User ID for a user (Account Linking)
+   */
+  async updateClerkId(userId: string, clerkUserId: string): Promise<User | undefined> {
+    return this.userRepository.update(userId, { clerkUserId });
   }
 }
 

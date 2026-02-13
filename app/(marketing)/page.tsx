@@ -9,6 +9,8 @@ import { FAQ } from "@/components/marketing/FAQ"
 import { Footer } from "@/components/marketing/Footer"
 import { DeploymentForm } from "@/components/features/deployment/DeploymentForm"
 import { Card, CardContent } from "@/components/ui/card"
+import { Comparison } from "@/components/marketing/Comparison"
+import { UseCases } from "@/components/marketing/UseCases"
 
 export default function HomePage() {
   useEffect(() => {
@@ -44,6 +46,7 @@ export default function HomePage() {
       <main className="relative z-10 text-white bg-[#0a0a0a]">
         <section className="py-12 px-4 sm:px-6 lg:px-8">
           <Features />
+          <Comparison />
 
           <div id="deploy" className="mb-16 scroll-section opacity-0 translate-y-8">
             {/* Hero Text */}
@@ -82,6 +85,8 @@ export default function HomePage() {
               </CardContent>
             </Card>
           </div>
+
+          <UseCases />
 
           <Pricing />
 
