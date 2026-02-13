@@ -61,12 +61,40 @@ export async function POST(req: NextRequest) {
         if (
             (eventType === 'checkout.updated' && (data.status === 'succeeded' || data.status === 'confirmed')) ||
             eventType === 'subscription.created' ||
+            eventType === 'subscription.updated' ||
             eventType === 'order.paid'
         ) {
             const polarId = data.id;
             const checkoutId = data.checkout_id; // For subscription/order events linked to a checkout
 
             logger.info(`Processing payment success event: ${eventType}`, { id: polarId });
+
+            // 4. Handle Subscription Tier Sync
+            if (eventType === 'subscription.created' || eventType === 'subscription.updated') {
+                const productId = data.product_id;
+                const customerId = data.customer_id;
+                const status = data.status; // 'active', 'canceled', etc.
+
+                if (customerId && productId) {
+                    const user = await userRepository.findByPolarId(customerId);
+                    if (user) {
+                        const { getTierByProductId } = await import('@/config/pricing');
+                        const tier = getTierByProductId(productId);
+
+                        // Default to 'free' if no matching tier (or if cancelled/past_due, though we might want to keep tier but change status)
+                        // If status is not active, we might want to downgrade to free?
+                        // For now, let's track the status and exact tier. 
+                        // If subscription is canceled, we might still want to show them as "Pro (Canceled)" until end of period.
+                        // But for simplicity, if it's active, set the tier.
+
+                        await userRepository.update(user.id, {
+                            tier: (status === 'active' && tier) ? tier.id : 'free',
+                            subscriptionStatus: status
+                        });
+                        logger.info(`✅ Updated user ${user.id} tier to ${tier?.id} (${status})`);
+                    }
+                }
+            }
 
             // Find deployment by Polar ID (could be the checkout ID stored in DB)
             // We store the checkout session ID in deployment.polarId

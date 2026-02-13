@@ -22,6 +22,10 @@ export const users = sqliteTable(
     // Polar customer linking
     polarCustomerId: text('polar_customer_id').unique(),
 
+    // Subscription details
+    tier: text('tier').default('free'), // 'free' | 'starter' | 'pro' | 'business'
+    subscriptionStatus: text('subscription_status').default('incomplete'), // 'active' | 'incomplete' | 'past_due' | 'canceled' | 'unpaid'
+
     // Timestamps
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),

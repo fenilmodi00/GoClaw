@@ -49,6 +49,14 @@ export class UserRepository {
     }
 
     /**
+     * Finds a user by their Polar customer ID
+     */
+    async findByPolarId(polarCustomerId: string): Promise<User | null> {
+        const results = await db.select().from(users).where(eq(users.polarCustomerId, polarCustomerId)).limit(1);
+        return results[0] || null;
+    }
+
+    /**
      * Updates a user record
      */
     async update(id: string, data: Partial<NewUser>): Promise<User | null> {

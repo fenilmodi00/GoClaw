@@ -11,6 +11,7 @@ interface CreditBalanceProps {
 
 export function CreditBalance({ compact }: CreditBalanceProps) {
     const [balance, setBalance] = useState<number | null>(null);
+    const [limit, setLimit] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const pathname = usePathname();
 
@@ -21,10 +22,12 @@ export function CreditBalance({ compact }: CreditBalanceProps) {
                 if (res.ok) {
                     const data = await res.json();
                     setBalance(data.balance);
+                    setLimit(data.creditLimit);
                 }
             } catch (error) {
                 console.error("Failed to fetch balance", error);
                 setBalance(null);
+                setLimit(null);
             } finally {
                 setLoading(false);
             }
@@ -43,6 +46,7 @@ export function CreditBalance({ compact }: CreditBalanceProps) {
 
     const displayBalance = balance !== null ? `$${balance.toFixed(2)}` : "--";
     const balanceInt = balance !== null ? Math.floor(balance) : 0;
+    const progress = (balance !== null && limit) ? Math.min(100, (balance / limit) * 100) : 0;
 
     if (compact) {
         return (
@@ -69,7 +73,7 @@ export function CreditBalance({ compact }: CreditBalanceProps) {
                 <div className="h-1 w-full bg-white/[0.06] rounded-full overflow-hidden">
                     <div
                         className="h-full bg-orange-500 rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${Math.min(100, ((balance || 0) / 10) * 100)}%` }}
+                        style={{ width: `${progress}%` }}
                     />
                 </div>
             </div>
