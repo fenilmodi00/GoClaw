@@ -46,12 +46,13 @@ export class PolarService {
     }
 
     /**
-     * Creates a Polar checkout session for a one-time payment.
+     * Creates a Polar checkout session for a one-time payment or subscription.
      * 
      * @param params - Checkout session parameters
      * @param params.email - Customer email address
      * @param params.deploymentId - Unique deployment ID to track in metadata
      * @param params.successUrl - URL to redirect to after successful payment
+     * @param params.productId - Specific Product ID to checkout (overrides default)
      * @returns Promise resolving to checkout session with url
      */
     async createCheckoutSession(params: {
@@ -59,17 +60,20 @@ export class PolarService {
         deploymentId: string;
         successUrl: string;
         customerId?: string; // Polar Customer ID from DB
+        productId?: string; // Specific product ID
         metadata?: Record<string, string>; // Arbitrary metadata
     }): Promise<Checkout> {
-        const { email, deploymentId, successUrl, customerId } = params;
+        const { email, deploymentId, successUrl, customerId, productId } = params;
 
-        if (!this.productId) {
+        const targetProductId = productId || this.productId;
+
+        if (!targetProductId) {
             throw new Error('Polar Product ID is not configured');
         }
 
         try {
             const checkout = await this.polar.checkouts.create({
-                products: [this.productId],
+                products: [targetProductId],
                 successUrl: successUrl,
                 customerEmail: email,
                 customerId: customerId, // Link to existing customer if available
@@ -83,6 +87,25 @@ export class PolarService {
         } catch (error) {
             const err = error as Error;
             throw new Error(`Polar API error: ${err.message}`);
+        }
+    }
+
+    /**
+     * Gets active subscriptions for a customer
+     * 
+     * @param customerId - Polar Customer ID
+     */
+    async getUserSubscriptions(customerId: string) {
+        try {
+            const response = await this.polar.subscriptions.list({
+                customerId: [customerId],
+                active: true,
+            });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return (response as any).items || [];
+        } catch (error) {
+            console.error('Failed to get user subscriptions:', error);
+            return [];
         }
     }
 

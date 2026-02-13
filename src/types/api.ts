@@ -39,6 +39,7 @@ export const CheckoutSchema = v.object({
     v.minLength(1, 'Channel token is required'),
     v.regex(/^\d+:[A-Za-z0-9_-]+$/, 'Invalid Telegram bot token format. Expected format: 123456:ABC-DEF...')
   ),
+  tier: v.optional(v.picklist(['starter', 'pro', 'business'], 'Invalid tier selection')),
 });
 
 /**

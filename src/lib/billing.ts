@@ -8,7 +8,10 @@
 
 export const BillingRates = {
     TOKENS_PER_DOLLAR: 100_000, // 1M tokens / $10
-    FREE_TIER_AMOUNT: 10.00,
+    FREE_TIER_AMOUNT: 0, // No free tier by default
+    STARTER_CREDITS: 10.00,
+    PRO_CREDITS: 20.00,
+    BUSINESS_CREDITS: 60.00,
 };
 
 /**

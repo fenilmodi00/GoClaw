@@ -197,6 +197,30 @@ export async function POST(request: NextRequest) {
       polarCustomerId = undefined; // Fallback to creating new customer/guest checkout
     }
 
+    // Determine Product ID based on tier (Requirement Change)
+    let productId: string | undefined;
+    if (data.tier) {
+      // Static import should be at top of file, but for minimal diff we can require or just use the values if available globally? 
+      // Actually, let's just use dynamic import properly or better yet, just move the import to top level.
+      // Since I can't easily move to top level with replace_file_content without context of top file, 
+      // I will use `require` or just dynamic import without destructuring type.
+
+      const pricingModule = await import('@/config/pricing');
+      const pricingTiers = pricingModule.PRICING_TIERS;
+      // const TierType = pricingModule.PricingTier; // Type not available at runtime
+
+      const tierKey = data.tier.toUpperCase();
+      // tierKey is string, we need to cast to keyof typeof pricingTiers
+      const tierConfig = pricingTiers[tierKey as keyof typeof pricingTiers];
+
+      if (tierConfig) {
+        productId = tierConfig.polarProductId;
+        if (!productId) {
+          logger.warn(`Polar Product ID not configured for tier ${data.tier}`);
+        }
+      }
+    }
+
     let session;
     try {
       session = await polarService.createCheckoutSession({
@@ -204,9 +228,11 @@ export async function POST(request: NextRequest) {
         deploymentId: deploymentId,
         successUrl,
         customerId: polarCustomerId, // Integrate with DB: Link checkout to existing Polar customer
+        productId: productId, // Pass the selected product ID
         metadata: {
           userId: user.id, // Internal DB ID
           clerkUserId: clerkUserId, // Clerk ID for backup
+          tier: data.tier || 'default',
         },
       });
     } catch (error) {
