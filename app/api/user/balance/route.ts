@@ -21,7 +21,7 @@ export async function GET() {
         const user = await userService.getUserByClerkId(userId);
 
         if (!user) {
-            return NextResponse.json({ balance });
+            return NextResponse.json({ balance, creditLimit });
         }
 
         if (user.polarCustomerId) {
@@ -29,7 +29,7 @@ export async function GET() {
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             if (!uuidRegex.test(user.polarCustomerId)) {
                 console.warn(`Invalid Polar Customer ID for user ${userId}`);
-                return NextResponse.json({ balance });
+                return NextResponse.json({ balance, creditLimit });
             }
         }
 
@@ -38,10 +38,9 @@ export async function GET() {
 
         if (user.tier) {
             const tierKey = user.tier.toUpperCase() as keyof typeof PRICING_TIERS;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            if ((PRICING_TIERS as any)[tierKey]) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                creditLimit = (PRICING_TIERS as any)[tierKey].credits;
+            const tierConfig = (PRICING_TIERS as Record<string, { credits: number }>)[tierKey];
+            if (tierConfig) {
+                creditLimit = tierConfig.credits;
             }
         }
 
@@ -52,17 +51,15 @@ export async function GET() {
             const meters = await polarService.getCustomerMeters(user.polarCustomerId);
 
             // Find 'ai_usage' meter
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const usageMeter = meters.find((m: any) =>
+            const usageMeter = meters.find((m: { name?: string; slug?: string; meter?: { name: string } }) =>
                 m.name === 'ai_usage' ||
                 m.slug === 'ai_usage' ||
                 (m.meter && m.meter.name === 'ai_usage')
             );
 
             if (usageMeter) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const meterObj = usageMeter as any;
-                const consumed = meterObj.consumedUnits ?? meterObj.usage ?? 0;
+                const consumed = (usageMeter as { consumedUnits?: number; usage?: number }).consumedUnits ??
+                    (usageMeter as { consumedUnits?: number; usage?: number }).usage ?? 0;
                 const usageTokens = Number(consumed);
 
                 // balance = creditLimit - cost(usage)

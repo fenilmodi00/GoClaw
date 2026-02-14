@@ -13,7 +13,7 @@ import { ChannelSelector } from "./ChannelSelector";
 import { UserProfile } from "./UserProfile";
 import { TelegramConnectDialog } from "../telegram/TelegramConnectDialog";
 import { Clock, Shield, Users, Star, Check } from "lucide-react";
-import { PRICING_TIERS } from "@/config/pricing";
+import { PRICING_TIERS, TierConfig } from "@/config/pricing";
 import { cn } from "@/lib/utils";
 
 const DeploymentFormSchema = v.object({
@@ -43,14 +43,6 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTelegramDialog, setShowTelegramDialog] = useState(false);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tier = params.get('tier');
-    if (tier && ['starter', 'pro', 'business'].includes(tier)) {
-      form.setFieldValue('tier', tier as any);
-    }
-  }, [isLoaded]);
 
   const form = useForm({
     defaultValues: {
@@ -97,6 +89,14 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
     },
     validatorAdapter: valibotValidator(),
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tier = params.get('tier');
+    if (tier && ['starter', 'pro', 'business'].includes(tier)) {
+      form.setFieldValue('tier', tier as "starter" | "pro" | "business");
+    }
+  }, [isLoaded, form]);
 
   const handleTokenSave = (token: string) => {
     form.setFieldValue("channelToken", token);
@@ -208,7 +208,7 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
                 <form.Field name="tier">
                   {(field) => (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {(Object.entries(PRICING_TIERS) as [string, any][]).map(([_key, tier]) => {
+                      {(Object.values(PRICING_TIERS) as TierConfig[]).map((tier) => {
                         const isSelected = field.state.value === tier.id;
                         return (
                           <button

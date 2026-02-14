@@ -40,14 +40,14 @@ export function TelegramConnectDialog({
 
   const handleSave = () => {
     const trimmedToken = botToken.trim();
-    
+
     if (!trimmedToken) {
       setTokenError("Please enter a bot token");
       return;
     }
 
     setIsSaving(true);
-    
+
     // Simulate save animation
     setTimeout(() => {
       onTokenSave(trimmedToken);
@@ -75,10 +75,10 @@ export function TelegramConnectDialog({
                 Connect Telegram
               </DialogTitle>
             </DialogHeader>
-            
+
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-gray-300">How to get your bot token?</h3>
-              
+
               <ol className="space-y-3 text-sm text-gray-400 leading-relaxed">
                 <li className="flex gap-3">
                   <span className="font-medium text-white flex-shrink-0">1.</span>
@@ -148,7 +148,7 @@ export function TelegramConnectDialog({
           <div className="hidden lg:block bg-gradient-to-br from-gray-900/50 to-black/50 p-8 border-l border-gray-800/50">
             <div className="relative w-[340px] h-[600px] rounded-2xl overflow-hidden shadow-2xl">
               <video
-                src="/GoClaw — Deploy OpenClaw under 1 Minute.mp4"
+                src="/TelegramTokenDemo.mp4"
                 autoPlay
                 loop
                 muted

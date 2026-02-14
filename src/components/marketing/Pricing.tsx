@@ -1,7 +1,7 @@
 "use client"
 
 import { useToast } from "@/hooks/use-toast";
-import { PRICING_TIERS } from "@/config/pricing";
+import { PRICING_TIERS, TierConfig } from "@/config/pricing";
 // import { useRouter } from "next/navigation";
 
 export function Pricing() {
@@ -52,7 +52,7 @@ export function Pricing() {
 
             {/* Pricing Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto">
-                {(Object.values(PRICING_TIERS) as any[]).map((tier) => (
+                {(Object.values(PRICING_TIERS) as TierConfig[]).map((tier) => (
                     <div
                         key={tier.id}
                         className={`relative bg-[#0e0f11] border rounded-2xl p-6 flex flex-col transition-all duration-300 hover:border-orange-500/30 hover:shadow-[0_0_25px_rgba(249,115,22,0.1)] group ${tier.id === 'pro' ? 'border-white/[0.12]' : 'border-white/[0.06]'}`}

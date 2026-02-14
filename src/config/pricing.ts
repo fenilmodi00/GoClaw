@@ -47,6 +47,7 @@ export const PRICING_TIERS = {
 } as const;
 
 export type PricingTier = keyof typeof PRICING_TIERS;
+export type TierConfig = typeof PRICING_TIERS[PricingTier];
 
 export function getTierByProductId(productId: string): { id: string; label: string; credits: number } | null {
     if (productId === PRICING_TIERS.STARTER.polarProductId) return PRICING_TIERS.STARTER;
