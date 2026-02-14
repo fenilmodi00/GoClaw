@@ -219,73 +219,78 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
                         {(Object.values(PRICING_TIERS) as TierConfig[]).map((tier) => {
                           const isSelected = field.state.value === tier.id;
                           return (
-                            <Tooltip key={tier.id}>
-                              <TooltipTrigger asChild>
-                                <button
-                                  type="button"
-                                  onClick={() => field.handleChange(tier.id)}
-                                  className={cn(
-                                    "relative flex flex-col p-4 rounded-xl border transition-all duration-300 text-left group",
-                                    isSelected
-                                      ? "bg-white/[0.05] border-orange-500/40 shadow-[0_0_20px_rgba(249,115,22,0.15)]"
-                                      : "bg-transparent border-white/[0.06] hover:border-orange-500/30 hover:shadow-[0_0_15px_rgba(249,115,22,0.1)]"
+                            <div key={tier.id} className="relative">
+                              {/* Tier Card Button */}
+                              <button
+                                type="button"
+                                onClick={() => field.handleChange(tier.id)}
+                                className={cn(
+                                  "relative flex flex-col p-4 rounded-xl border transition-all duration-300 text-left w-full h-full group",
+                                  isSelected
+                                    ? "bg-white/[0.05] border-orange-500/40 shadow-[0_0_20px_rgba(249,115,22,0.15)]"
+                                    : "bg-transparent border-white/[0.06] hover:border-orange-500/30 hover:shadow-[0_0_15px_rgba(249,115,22,0.1)]"
+                                )}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-[11px] font-semibold text-white/90">{tier.label}</span>
+                                  {isSelected && (
+                                    <div className="h-3 w-3 rounded-full bg-white flex items-center justify-center">
+                                      <Check className="h-2 w-2 text-black" />
+                                    </div>
                                   )}
+                                </div>
+                                <div className="mb-2">
+                                  <span className="text-lg font-bold text-white">${tier.price}</span>
+                                  <span className="text-[10px] text-white/30">/mo</span>
+                                </div>
+                                <p className="text-[10px] text-emerald-400/70 mb-1">
+                                  ${tier.credits} credits
+                                </p>
+                                <p className="text-[9px] text-white/25 leading-tight">
+                                  {tier.id === 'starter' ? '1 bot' : tier.id === 'pro' ? '3 bots' : 'Unlimited'}
+                                </p>
+                              </button>
+
+                              {/* Info Button with Tooltip - Only triggers on info icon hover */}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="absolute bottom-2 right-2 z-10 h-5 w-5 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center transition-all duration-200 hover:bg-white/[0.12] hover:border-white/[0.2] hover:scale-110"
+                                  >
+                                    <Info className="h-2.5 w-2.5 text-white/50 hover:text-white/70" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent 
+                                  side="top" 
+                                  align="end"
+                                  className="max-w-[280px] p-4 bg-[#1a1a1a] border border-white/[0.08] shadow-2xl"
+                                  sideOffset={8}
                                 >
-                                  {/* Info Button */}
-                                  <div className="absolute bottom-2 right-2">
-                                    <div className="h-5 w-5 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center transition-colors duration-200 group-hover:bg-white/[0.1] group-hover:border-white/[0.15]">
-                                      <Info className="h-2.5 w-2.5 text-white/40" />
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-semibold text-white">{tier.label}</span>
+                                      <span className="text-sm font-bold text-emerald-400">${tier.price}/mo</span>
+                                    </div>
+                                    <p className="text-xs text-white/60 leading-relaxed">
+                                      {tier.description}
+                                    </p>
+                                    <div className="pt-2 border-t border-white/[0.06]">
+                                      <p className="text-[10px] uppercase tracking-wider text-white/40 mb-2 font-medium">Features</p>
+                                      <ul className="space-y-1.5">
+                                        {tier.features.map((feature, idx) => (
+                                          <li key={idx} className="flex items-start gap-2 text-[11px] text-white/70">
+                                            <Check className="h-3 w-3 text-emerald-400/80 flex-shrink-0 mt-0.5" />
+                                            <span>{feature}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
                                     </div>
                                   </div>
-
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[11px] font-semibold text-white/90">{tier.label}</span>
-                                    {isSelected && (
-                                      <div className="h-3 w-3 rounded-full bg-white flex items-center justify-center">
-                                        <Check className="h-2 w-2 text-black" />
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="mb-2">
-                                    <span className="text-lg font-bold text-white">${tier.price}</span>
-                                    <span className="text-[10px] text-white/30">/mo</span>
-                                  </div>
-                                  <p className="text-[10px] text-emerald-400/70 mb-1">
-                                    ${tier.credits} credits
-                                  </p>
-                                  <p className="text-[9px] text-white/25 leading-tight">
-                                    {tier.id === 'starter' ? '1 bot' : tier.id === 'pro' ? '3 bots' : 'Unlimited'}
-                                  </p>
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent 
-                                side="top" 
-                                align="center"
-                                className="max-w-[280px] p-4 bg-[#1a1a1a] border border-white/[0.08] shadow-2xl"
-                                sideOffset={8}
-                              >
-                                <div className="space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-semibold text-white">{tier.label}</span>
-                                    <span className="text-sm font-bold text-emerald-400">${tier.price}/mo</span>
-                                  </div>
-                                  <p className="text-xs text-white/60 leading-relaxed">
-                                    {tier.description}
-                                  </p>
-                                  <div className="pt-2 border-t border-white/[0.06]">
-                                    <p className="text-[10px] uppercase tracking-wider text-white/40 mb-2 font-medium">Features</p>
-                                    <ul className="space-y-1.5">
-                                      {tier.features.map((feature, idx) => (
-                                        <li key={idx} className="flex items-start gap-2 text-[11px] text-white/70">
-                                          <Check className="h-3 w-3 text-emerald-400/80 flex-shrink-0 mt-0.5" />
-                                          <span>{feature}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
                           );
                         })}
                       </div>
