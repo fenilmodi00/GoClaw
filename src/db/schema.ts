@@ -69,7 +69,7 @@ export const deployments = sqliteTable(
     email: text('email').notNull(),
 
     // Deployment configuration
-    model: text('model').notNull(), // 'claude-opus-4.5' | 'gpt-3.2' | 'gemini-3-flash'
+    model: text('model').notNull(), // 'minimax-m2.5' | 'gpt-3.2' | 'gemini-3-flash'
     channel: text('channel').notNull(), // 'telegram' | 'discord' | 'whatsapp'
 
     // Encrypted credentials

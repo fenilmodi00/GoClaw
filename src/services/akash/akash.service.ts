@@ -145,7 +145,7 @@ export interface AkashLeaseResponse {
  * The SDL defines:
  * - Container image (ghcr.io/fenilmodi00/openclaw-docker:main-0a3827a)
  * - Environment variables for AkashML API and Telegram bot
- * - Model: meta-llama/Llama-3.3-70B-Instruct via AkashML
+ * - Model: MiniMaxAI/MiniMax-M2.5 via AkashML
  * - Two exposed ports: 18789 (gateway) and 18790 (bridge)
  * - Resource requirements (1 CPU, 2GB memory, 1GB ephemeral + 5GB persistent storage)
  * - Persistent storage for OpenClaw workspace

@@ -3,7 +3,7 @@
 import Image from "next/image";
 
 export const AI_MODELS = [
-  { id: "claude-opus-4.5" as const, name: "AkashML", logo: "/logo/akashml.png", showName: false, invert: true, comingSoon: false },
+  { id: "minimax-m2.5" as const, name: "AkashML", logo: "/logo/akashml.png", showName: false, invert: true, comingSoon: false },
   { id: "gpt-3.2" as const, name: "ChatGPT", logo: "/logo/openai.png", showName: true, invert: true, comingSoon: true },
   { id: "gemini-3-flash" as const, name: "Gemini", logo: "/logo/google-gemini-icon.png", showName: true, invert: false, comingSoon: true },
 ];

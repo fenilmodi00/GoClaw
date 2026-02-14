@@ -28,7 +28,7 @@ export const ClerkWebhookSchema = v.object({
 export const CheckoutSchema = v.object({
   model: v.pipe(
     v.string(),
-    v.picklist(['claude-opus-4.5', 'gpt-3.2', 'gemini-3-flash'], 'Invalid model selection')
+    v.picklist(['minimax-m2.5', 'gpt-3.2', 'gemini-3-flash'], 'Invalid model selection')
   ),
   channel: v.pipe(
     v.string(),
@@ -82,7 +82,7 @@ export type StatusQuery = v.InferOutput<typeof StatusQuerySchema>;
  * 
  * Requirements: 2.2, 13.3
  */
-export type Model = 'claude-opus-4.5' | 'gpt-3.2' | 'gemini-3-flash';
+export type Model = 'minimax-m2.5' | 'gpt-3.2' | 'gemini-3-flash';
 
 /**
  * Channel selection type - extracted from schema for reuse

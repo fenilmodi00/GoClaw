@@ -24,7 +24,7 @@ services:
     env:
       - HOME=/home/node
       - TERM=xterm-256color
-      - MODEL_ID=meta-llama/Llama-3.3-70B-Instruct
+      - MODEL_ID=MiniMaxAI/MiniMax-M2.5
       - BASE_URL=https://api.akashml.com/v1
       - API_KEY=${akashmlApiKey}
       - API_PROTOCOL=openai-completions

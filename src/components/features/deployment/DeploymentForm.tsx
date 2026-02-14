@@ -25,7 +25,7 @@ import {
 const DeploymentFormSchema = v.object({
   model: v.pipe(
     v.string(),
-    v.picklist(["claude-opus-4.5", "gpt-3.2", "gemini-3-flash"], "Invalid model selection")
+    v.picklist(["minimax-m2.5", "gpt-3.2", "gemini-3-flash"], "Invalid model selection")
   ),
   channel: v.pipe(
     v.string(),
@@ -52,7 +52,7 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
 
   const form = useForm({
     defaultValues: {
-      model: "" as "claude-opus-4.5" | "gpt-3.2" | "gemini-3-flash" | "",
+      model: "" as "minimax-m2.5" | "gpt-3.2" | "gemini-3-flash" | "",
       channel: "" as "telegram" | "discord" | "whatsapp" | "",
       channelToken: "",
       tier: "" as "starter" | "pro" | "business" | "",
@@ -146,8 +146,8 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
             validators={{
               onChange: v.pipe(
                 v.string(),
-                v.picklist(
-                  ["claude-opus-4.5", "gpt-3.2", "gemini-3-flash"],
+              v.picklist(
+                  ["minimax-m2.5", "gpt-3.2", "gemini-3-flash"],
                   "Please select a valid AI model"
                 )
               ),
@@ -157,7 +157,7 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
               <ModelSelector
                 value={field.state.value}
                 onChange={(value) =>
-                  field.handleChange(value as "claude-opus-4.5" | "gpt-3.2" | "gemini-3-flash")
+                  field.handleChange(value as "minimax-m2.5" | "gpt-3.2" | "gemini-3-flash")
                 }
                 error={field.state.meta.errors[0] || undefined}
               />
