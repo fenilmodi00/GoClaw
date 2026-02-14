@@ -30,7 +30,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
-        <ClerkProvider>
+        <ClerkProvider
+          signInFallbackRedirectUrl="/#deploy"
+          signUpFallbackRedirectUrl="/#deploy"
+        >
           {children}
           <Toaster />
           <SpeedInsights />
