@@ -40,9 +40,16 @@ export function TelegramConnectDialog({
 
   const handleSave = () => {
     const trimmedToken = botToken.trim();
+    // Validate Telegram bot token format: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+    const tokenRegex = /^\d{8,}:[A-Za-z0-9_-]{35,}$/;
 
     if (!trimmedToken) {
       setTokenError("Please enter a bot token");
+      return;
+    }
+
+    if (!tokenRegex.test(trimmedToken)) {
+      setTokenError("Invalid token format. It should look like: 123456789:ABCdef...");
       return;
     }
 

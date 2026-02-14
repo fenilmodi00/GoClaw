@@ -25,16 +25,20 @@ import {
 const DeploymentFormSchema = v.object({
   model: v.pipe(
     v.string(),
-    v.picklist(["minimax-m2.5", "gpt-3.2", "gemini-3-flash"], "Invalid model selection")
+    v.picklist(["minimax-m2.5", "gpt-3.2", "gemini-3-flash"], "Please select an AI model for your bot")
   ),
   channel: v.pipe(
     v.string(),
-    v.picklist(["telegram", "discord", "whatsapp"], "Invalid channel selection")
+    v.picklist(["telegram", "discord", "whatsapp"], "Please select a messaging platform")
   ),
-  channelToken: v.pipe(v.string(), v.minLength(1, "Channel token is required")),
+  channelToken: v.pipe(
+    v.string(),
+    v.minLength(1, "A valid bot token is required to connect"),
+    v.regex(/^\d{8,}:[A-Za-z0-9_-]{35,}$/, "Invalid Telegram bot token format. Please check your token.")
+  ),
   tier: v.pipe(
     v.string(),
-    v.picklist(["starter", "pro", "business"], "Please select a plan")
+    v.picklist(["starter", "pro", "business"], "Please choose a subscription plan to continue")
   ),
 });
 
@@ -318,7 +322,7 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
             "w-full font-semibold py-3 text-sm flex items-center justify-center gap-2 rounded-xl transition-all duration-300",
             !selectedTier && hasToken
               ? "bg-white/[0.02] text-white/30 border border-white/[0.05] cursor-not-allowed"
-              : "bg-gradient-to-r from-orange-500 to-orange-400 text-white hover:from-orange-400 hover:to-orange-300 shadow-[0_0_20px_rgba(249,115,22,0.3)] hover:shadow-[0_0_30px_rgba(249,115,22,0.5)]"
+              : "bg-gradient-to-r from-orange-500 to-orange-400 text-white hover:from-orange-400 hover:to-orange-300 shadow-lg hover:shadow-xl"
           )}
           disabled={isSubmitting || (hasToken && !selectedTier)}
         >

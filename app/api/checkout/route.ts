@@ -138,6 +138,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Determine Product ID based on tier (Moved up for session validation)
+    let productId: string | undefined;
+    if (data.tier) {
+      const pricingModule = await import('@/config/pricing');
+      const pricingTiers = pricingModule.PRICING_TIERS;
+
+      const tierKey = data.tier.toUpperCase();
+      const tierConfig = pricingTiers[tierKey as keyof typeof pricingTiers];
+
+      if (tierConfig) {
+        productId = tierConfig.polarProductId;
+        if (!productId) {
+          logger.warn(`Polar Product ID not configured for tier ${data.tier}`);
+        }
+      }
+    }
+
     // Check for existing pending deployment with same configuration
     // This allows reusing payment links for identical deployments
     logger.debug('Checking for pending duplicate deployment');
@@ -161,8 +178,22 @@ export async function POST(request: NextRequest) {
       // Handle Polar
       if (existingDeployment.paymentProvider === 'polar' && existingDeployment.polarId) {
         const existingSession = await polarService.getCheckoutSession(existingDeployment.polarId);
+        
+        // Verify session is active AND matches the requested product (tier)
+        // If the user requested 'pro' but the existing session is for 'starter', we must NOT reuse it.
         if (existingSession && existingSession.status === 'open') {
-          sessionUrl = existingSession.url;
+          const sessionProductId = existingSession.productId;
+          
+          // If we have a target product ID, ensure it matches
+          if (productId && sessionProductId !== productId) {
+             logger.info('Existing session found but product ID mismatch (user requested different tier), creating new session', {
+               requested: productId,
+               existing: sessionProductId
+             });
+             // Do not set sessionUrl, fall through to create new session
+          } else {
+             sessionUrl = existingSession.url;
+          }
         }
       }
 
@@ -174,7 +205,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      logger.warn('Existing session expired or invalid, creating new one');
+      logger.warn('Existing session expired, invalid, or tier mismatch - creating new one');
     }
 
     // Generate deployment ID upfront
@@ -195,30 +226,6 @@ export async function POST(request: NextRequest) {
     if (polarCustomerId && !uuidRegex.test(polarCustomerId)) {
       logger.warn('Invalid Polar Customer ID validation in checkout', { polarCustomerId });
       polarCustomerId = undefined; // Fallback to creating new customer/guest checkout
-    }
-
-    // Determine Product ID based on tier (Requirement Change)
-    let productId: string | undefined;
-    if (data.tier) {
-      // Static import should be at top of file, but for minimal diff we can require or just use the values if available globally? 
-      // Actually, let's just use dynamic import properly or better yet, just move the import to top level.
-      // Since I can't easily move to top level with replace_file_content without context of top file, 
-      // I will use `require` or just dynamic import without destructuring type.
-
-      const pricingModule = await import('@/config/pricing');
-      const pricingTiers = pricingModule.PRICING_TIERS;
-      // const TierType = pricingModule.PricingTier; // Type not available at runtime
-
-      const tierKey = data.tier.toUpperCase();
-      // tierKey is string, we need to cast to keyof typeof pricingTiers
-      const tierConfig = pricingTiers[tierKey as keyof typeof pricingTiers];
-
-      if (tierConfig) {
-        productId = tierConfig.polarProductId;
-        if (!productId) {
-          logger.warn(`Polar Product ID not configured for tier ${data.tier}`);
-        }
-      }
     }
 
     let session;
