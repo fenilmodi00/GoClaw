@@ -4,6 +4,7 @@ import { userService } from '@/services/user/user.service';
 import { polarService } from '@/services/polar/polar.service';
 import { calculateRemainingBalance } from '@/lib/billing';
 import { rateLimit } from '@/middleware/rate-limit';
+import { checkTokenThrottle } from '@/middleware/token-throttle';
 import * as v from 'valibot';
 import { CustomerMeter } from '@polar-sh/sdk/models/components/customermeter';
 
@@ -53,6 +54,32 @@ export async function POST(req: Request) {
             return new NextResponse("User not found", { status: 404 });
         }
 
+        // Token Throttling - Check before processing request
+        const json = await req.json();
+        const estimatedTokens = json.max_tokens || 4000; // Default estimate
+        const tierKey = (user.tier || 'starter').toUpperCase();
+        const throttleResult = await checkTokenThrottle(userId, tierKey, estimatedTokens);
+
+        if (!throttleResult.allowed) {
+            return new NextResponse(
+                JSON.stringify({
+                    error: 'Token limit exceeded',
+                    retryAfter: throttleResult.retryAfter,
+                    remaining: throttleResult.remaining,
+                    limit: throttleResult.limit,
+                }),
+                {
+                    status: 429,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Retry-After': String(throttleResult.retryAfter || 60),
+                        'X-RateLimit-Remaining': String(throttleResult.remaining),
+                        'X-RateLimit-Limit': String(throttleResult.limit),
+                    }
+                }
+            );
+        }
+
         // If user has no Polar Customer ID, try to create it?
         // Ideally this should have happened on webhook or login.
         if (!user.polarCustomerId) {
@@ -61,7 +88,7 @@ export async function POST(req: Request) {
         }
 
         // Check Balance
-        // Enforce $10 free tier limit (approx 1M tokens)
+        // Enforce tier credit limits
 
         // Validate UUID
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -94,9 +121,7 @@ export async function POST(req: Request) {
             }
         }
 
-        const json = await req.json();
-
-        // Validate Request Body
+        // Validate Request Body (json already parsed above for token throttling)
         const result = v.safeParse(ChatRequestSchema, json);
         if (!result.success) {
             return new NextResponse("Invalid request body", { status: 400 });
@@ -132,9 +157,18 @@ export async function POST(req: Request) {
         if (usage) {
             const totalTokens = usage.total_tokens || 0;
             if (totalTokens > 0) {
-                // Record to Polar
-                // eventName 'ai_usage' matches what we planned.
-                await polarService.recordUsage(user.polarCustomerId, 'ai_usage', totalTokens);
+                // Record to Polar with validation and fallback
+                const result = await polarService.recordUsageSafe(
+                    user.polarCustomerId, 
+                    'ai_usage', 
+                    totalTokens,
+                    true // fallback to local if Polar fails
+                );
+                
+                if (!result.success) {
+                    console.error(`⚠️  Failed to record usage: ${result.error}`);
+                    // Continue - don't block user for billing issues
+                }
             }
         }
 

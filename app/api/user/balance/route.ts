@@ -8,8 +8,8 @@ import { calculateRemainingBalance, BillingRates } from '@/lib/billing';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-    let balance = BillingRates.FREE_TIER_AMOUNT;
-    let creditLimit = BillingRates.FREE_TIER_AMOUNT;
+    let balance: number = BillingRates.STARTER_CREDITS;
+    let creditLimit: number = BillingRates.STARTER_CREDITS;
 
     try {
         const { userId } = await auth();

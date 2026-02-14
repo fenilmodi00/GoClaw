@@ -53,12 +53,6 @@ export class UserService {
     try {
       const polarCustomer = await polarService.createCustomer(email, undefined, clerkUserId);
       polarCustomerId = polarCustomer.id;
-
-      // Subscribe to Free Tier if configured
-      const freeTierProductId = process.env.POLAR_FREE_TIER_PRODUCT_ID;
-      if (freeTierProductId && polarCustomerId) {
-        await polarService.subscribeCustomer(polarCustomerId, freeTierProductId);
-      }
     } catch (error) {
       console.error('Failed to create Polar customer:', error);
     }

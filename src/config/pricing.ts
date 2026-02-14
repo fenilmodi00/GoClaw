@@ -1,9 +1,12 @@
+import { TIER_TOKEN_LIMITS } from '@/middleware/token-throttle';
+
 export const PRICING_TIERS = {
     STARTER: {
         id: 'starter',
         label: 'Starter',
         price: 29,
         credits: 10,
+        maxTokensPerHour: TIER_TOKEN_LIMITS.STARTER,
         description: 'Perfect for hobbyists and improved experiments',
         features: [
             '1 AI agent deployment',
@@ -19,6 +22,7 @@ export const PRICING_TIERS = {
         label: 'Pro',
         price: 49,
         credits: 20,
+        maxTokensPerHour: TIER_TOKEN_LIMITS.PRO,
         description: 'For power users who need more resources',
         features: [
             '3 AI agent deployments',
@@ -34,6 +38,7 @@ export const PRICING_TIERS = {
         label: 'Business',
         price: 99,
         credits: 60,
+        maxTokensPerHour: TIER_TOKEN_LIMITS.BUSINESS,
         description: 'Ultimate power and scale for your business',
         features: [
             'Unlimited AI agent deployments',

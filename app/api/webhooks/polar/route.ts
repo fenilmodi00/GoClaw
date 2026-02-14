@@ -81,14 +81,21 @@ export async function POST(req: NextRequest) {
                         const { getTierByProductId } = await import('@/config/pricing');
                         const tier = getTierByProductId(productId);
 
-                        // Default to 'free' if no matching tier (or if cancelled/past_due, though we might want to keep tier but change status)
-                        // If status is not active, we might want to downgrade to free?
-                        // For now, let's track the status and exact tier. 
-                        // If subscription is canceled, we might still want to show them as "Pro (Canceled)" until end of period.
-                        // But for simplicity, if it's active, set the tier.
+                        // Handle tier changes with grace period support
+                        // Keep current tier during grace period unless explicitly canceled/unpaid
+                        let newTier: string;
+                        if (status === 'active' && tier) {
+                            newTier = tier.id;
+                        } else if (status === 'canceled' || status === 'unpaid') {
+                            // Downgrade to starter after grace period
+                            newTier = 'starter';
+                        } else {
+                            // Keep current tier during grace period (past_due, incomplete, etc.)
+                            newTier = user.tier || 'starter';
+                        }
 
                         await userRepository.update(user.id, {
-                            tier: (status === 'active' && tier) ? tier.id : 'free',
+                            tier: newTier,
                             subscriptionStatus: status
                         });
                         logger.info(`✅ Updated user ${user.id} tier to ${tier?.id} (${status})`);

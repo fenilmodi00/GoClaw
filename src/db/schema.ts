@@ -23,8 +23,8 @@ export const users = sqliteTable(
     polarCustomerId: text('polar_customer_id').unique(),
 
     // Subscription details
-    tier: text('tier').default('free'), // 'free' | 'starter' | 'pro' | 'business'
-    subscriptionStatus: text('subscription_status').default('incomplete'), // 'active' | 'incomplete' | 'past_due' | 'canceled' | 'unpaid'
+    tier: text('tier').default('starter'), // 'starter' | 'pro' | 'business'
+    subscriptionStatus: text('subscription_status').default('active'), // 'active' | 'incomplete' | 'past_due' | 'canceled' | 'unpaid'
 
     // Timestamps
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),

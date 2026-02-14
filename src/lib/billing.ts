@@ -10,7 +10,6 @@ import { PRICING_TIERS } from '@/config/pricing';
 
 export const BillingRates = {
     TOKENS_PER_DOLLAR: 100_000, // 1M tokens / $10
-    FREE_TIER_AMOUNT: 0, // No free tier by default
     STARTER_CREDITS: PRICING_TIERS.STARTER.credits,
     PRO_CREDITS: PRICING_TIERS.PRO.credits,
     BUSINESS_CREDITS: PRICING_TIERS.BUSINESS.credits,
@@ -28,10 +27,10 @@ export function calculateCost(tokens: number): number {
 /**
  * Calculates remaining balance in dollars given usage tokens.
  * @param usageTokens Total tokens consumed
- * @param initialBalance Initial credit balance (default: Free Tier)
+ * @param initialBalance Initial credit balance (default: Starter Tier)
  * @returns Remaining balance in dollars (min 0)
  */
-export function calculateRemainingBalance(usageTokens: number, initialBalance: number = BillingRates.FREE_TIER_AMOUNT): number {
+export function calculateRemainingBalance(usageTokens: number, initialBalance: number = BillingRates.STARTER_CREDITS): number {
     const cost = calculateCost(usageTokens);
     return Math.max(0, initialBalance - cost);
 }

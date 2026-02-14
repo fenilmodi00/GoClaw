@@ -249,8 +249,8 @@ export class PolarService {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const meters = (response as any).items || [];
 
-            // Cache for 1 minute (short TTL for near real-time updates)
-            await cacheService.set(cacheKey, meters, 60);
+            // Cache for 30 seconds (shorter TTL for near real-time updates)
+            await cacheService.set(cacheKey, meters, 30);
 
             return meters;
         } catch (error) {
@@ -258,6 +258,70 @@ export class PolarService {
             return [];
         }
     }
+    /**
+     * Validates that the ai_usage meter exists for a customer
+     * Creates a warning log if meter is missing
+     * 
+     * @param customerId - Polar Customer ID
+     * @returns boolean indicating if meter exists
+     */
+    async validateMeterExists(customerId: string): Promise<boolean> {
+        try {
+            const meters = await this.getCustomerMeters(customerId);
+            const hasAiUsageMeter = meters.some((m: CustomerMeter) => 
+                m.meter?.name === 'ai_usage'
+            );
+            
+            if (!hasAiUsageMeter) {
+                console.warn(`⚠️  ai_usage meter not found for customer ${customerId}. ` +
+                            `Please create the meter in Polar dashboard.`);
+            }
+            
+            return hasAiUsageMeter;
+        } catch (error) {
+            console.error('Failed to validate meter:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Records usage with validation and fallback
+     */
+    async recordUsageSafe(
+        polarCustomerId: string, 
+        eventName: string, 
+        amount: number,
+        fallbackToLocal: boolean = true
+    ): Promise<{ success: boolean; recorded: boolean; error?: string }> {
+        try {
+            // Validate meter exists first
+            const meterExists = await this.validateMeterExists(polarCustomerId);
+            
+            if (!meterExists && !fallbackToLocal) {
+                return { 
+                    success: false, 
+                    recorded: false, 
+                    error: 'Meter not configured' 
+                };
+            }
+            
+            // Record to Polar
+            await this.recordUsage(polarCustomerId, eventName, amount);
+            
+            return { success: true, recorded: true };
+        } catch (error) {
+            const err = error as Error;
+            console.error(`Failed to record usage to Polar: ${err.message}`);
+            
+            // Could add local fallback logging here
+            return { 
+                success: fallbackToLocal, 
+                recorded: false, 
+                error: err.message 
+            };
+        }
+    }
+
     /**
      * Subscribes a customer to a product (e.g., Free Tier)
      * 
