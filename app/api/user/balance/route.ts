@@ -33,17 +33,50 @@ export async function GET() {
             }
         }
 
-        // 1. Check for local tier to determine credit limit
-        const { PRICING_TIERS } = await import('@/config/pricing');
-
-        if (user.tier) {
-            const tierKey = user.tier.toUpperCase() as keyof typeof PRICING_TIERS;
-            const tierConfig = (PRICING_TIERS as Record<string, { credits: number }>)[tierKey];
-            if (tierConfig) {
-                creditLimit = tierConfig.credits;
+        // 1. Check for active subscriptions (support multiple tiers)
+        let totalCreditLimit = 0;
+        
+        if (user.polarCustomerId) {
+            try {
+                // Fetch all active subscriptions
+                const subscriptions = await polarService.getUserSubscriptions(user.polarCustomerId);
+                
+                if (subscriptions && subscriptions.length > 0) {
+                    const { getTierByProductId } = await import('@/config/pricing');
+                    
+                    for (const sub of subscriptions) {
+                        // Check if subscription is active
+                        // @ts-expect-error - sub.status exists on Polar subscription object
+                        if (sub.status === 'active') {
+                            // @ts-expect-error - sub.productId exists
+                            const tier = getTierByProductId(sub.productId);
+                            if (tier) {
+                                totalCreditLimit += tier.credits;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch user subscriptions", error);
             }
         }
 
+        // Fallback to single tier stored in DB if no subscriptions found
+        if (totalCreditLimit === 0 && user.tier) {
+            const { PRICING_TIERS } = await import('@/config/pricing');
+            const tierKey = user.tier.toUpperCase() as keyof typeof PRICING_TIERS;
+            const tierConfig = (PRICING_TIERS as Record<string, { credits: number }>)[tierKey];
+            if (tierConfig) {
+                totalCreditLimit = tierConfig.credits;
+            }
+        }
+        
+        // Final fallback to Starter credits
+        if (totalCreditLimit === 0) {
+            totalCreditLimit = BillingRates.STARTER_CREDITS;
+        }
+
+        creditLimit = totalCreditLimit;
         balance = creditLimit;
 
         // 2. Check usage

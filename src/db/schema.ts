@@ -172,3 +172,42 @@ export type LLMUsageLog = typeof llmUsageLog.$inferSelect;
  * Type for inserting a new LLM usage log record into the database
  */
 export type NewLLMUsageLog = typeof llmUsageLog.$inferInsert;
+
+/**
+ * Provider Blacklist table schema
+ * 
+ * Stores Akash providers that should be excluded from deployments.
+ * Used to blacklist problematic providers (e.g., those with persistent 503 errors).
+ * 
+ * Requirements: Blacklisted providers should not receive leases
+ */
+export const providerBlacklist = sqliteTable(
+  'provider_blacklist',
+  {
+    // Primary identifier - the Akash provider address
+    providerAddress: text('provider_address').primaryKey(),
+
+    // Reason for blacklisting (e.g., "Persistent 503 errors", "SSL issues", "High failure rate")
+    reason: text('reason').notNull().default('Provider blacklisted'),
+
+    // When the provider was blacklisted
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+
+    // When to automatically unblacklist (optional - null means permanent)
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+  },
+  (table) => ({
+    // Index on created_at for cleanup queries
+    createdAtIdx: index('blacklist_created_at_idx').on(table.createdAt),
+  })
+);
+
+/**
+ * Type for selecting a blacklist record from the database
+ */
+export type ProviderBlacklist = typeof providerBlacklist.$inferSelect;
+
+/**
+ * Type for inserting a new blacklist record into the database
+ */
+export type NewProviderBlacklist = typeof providerBlacklist.$inferInsert;

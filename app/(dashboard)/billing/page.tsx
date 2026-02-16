@@ -12,12 +12,54 @@ export default async function BillingPage() {
     const { userId } = await auth();
 
     if (!userId) {
-        // Should be protected by middleware usually, but safe fallback
         return <div>Please sign in</div>;
     }
 
     const user = await userService.getUserByClerkId(userId);
-    let balance = BillingRates.FREE_TIER_AMOUNT; // Default Free Tier
+    
+    // Get credit limit - support multiple subscriptions
+    let creditLimit = BillingRates.STARTER_CREDITS as number;
+    
+    if (user?.polarCustomerId) {
+        try {
+            // Fetch all active subscriptions from Polar
+            const subscriptions = await polarService.getUserSubscriptions(user.polarCustomerId);
+            
+            if (subscriptions && subscriptions.length > 0) {
+                const { getTierByProductId } = await import('@/config/pricing');
+                let totalCredits = 0;
+                
+                for (const sub of subscriptions) {
+                    // @ts-expect-error - sub.status and sub.productId exist on Polar subscription object
+                    if (sub.status === 'active') {
+                        // @ts-expect-error - sub.productId exists
+                        const tier = getTierByProductId(sub.productId);
+                        if (tier) {
+                            totalCredits += tier.credits;
+                        }
+                    }
+                }
+                
+                if (totalCredits > 0) {
+                    creditLimit = totalCredits;
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch subscriptions", error);
+        }
+    }
+    
+    // Fallback to single tier from DB if no subscriptions found
+    if (creditLimit === BillingRates.STARTER_CREDITS && user?.tier) {
+        const { PRICING_TIERS } = await import('@/config/pricing');
+        const tierKey = user.tier.toUpperCase() as keyof typeof PRICING_TIERS;
+        const tierConfig = PRICING_TIERS[tierKey];
+        if (tierConfig) {
+            creditLimit = tierConfig.credits as number;
+        }
+    }
+    
+    let balance = creditLimit;
 
     if (user?.polarCustomerId) {
         // Validate UUID to avoid 422 errors from Polar SDK
@@ -28,24 +70,16 @@ export default async function BillingPage() {
         } else {
             try {
                 const meters = await polarService.getCustomerMeters(user.polarCustomerId);
-                // debug: console.log('Meters:', meters);
 
                 // Find 'ai_usage' meter
-                // We assume the meter name is 'ai_usage' or similar.
-                // Also checking if there are specific credit meters.
-
-
-                // ...
-
-                // Find 'ai_usage' meter
-                // We assume the meter name is 'ai_usage' or similar.
                 const usageMeter = meters.find((m: CustomerMeter) => m.meter.name === 'ai_usage');
 
                 if (usageMeter) {
                     // usageMeter.consumedUnits is the usage count (tokens)
                     const usageTokens = Number(usageMeter.consumedUnits || 0);
 
-                    balance = calculateRemainingBalance(usageTokens);
+                    // balance = creditLimit - cost(usage)
+                    balance = calculateRemainingBalance(usageTokens, creditLimit);
                 }
             } catch (error) {
                 console.error("Failed to fetch meters", error);
@@ -54,14 +88,6 @@ export default async function BillingPage() {
         }
     }
 
-    // We'll modify BillingClient to accept the button or just render it here if BillingClient is full page.
-    // Looking at BillingClient usage, it seems to be the whole page content.
-    // Ideally we pass the button or render it inside.
-    // Let's modify BillingClient to accept a 'children' or 'actions' prop? 
-    // Or simpler: Just return a fragment and overlay it?
-    // Let's assume BillingClient renders a layout where we can inject this.
-    // Actually, checking standard pattern: usually standard components.
-    // Let's just return the client for now, I need to check BillingClient implementation first to properly integrate. 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">

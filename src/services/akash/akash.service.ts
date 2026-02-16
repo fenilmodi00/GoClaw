@@ -1,4 +1,7 @@
 import { generateSDLTemplate } from './sdl.template';
+import { isRetryableAkashError, isProviderUnavailableError, type DeploymentDetails } from '@/lib/akash-utils';
+import { AkashAllProvidersFailedError, AkashCertificateError } from '@/lib/errors';
+import { getProviderBlacklistRepository } from '@/db/repositories/blacklist-repository';
 
 /**
  * Parameters for generating SDL configuration
@@ -202,6 +205,21 @@ const BID_POLL_TIMEOUT_MS = 60 * 1000;
 const MIN_DEPOSIT_USD = 5;
 
 /**
+ * Maximum retries for lease creation
+ */
+const LEASE_MAX_RETRIES = 3;
+
+/**
+ * Base delay for lease retry (exponential backoff)
+ */
+const LEASE_RETRY_BASE_DELAY_MS = 2000;
+
+/**
+ * Timeout for provider health check
+ */
+const PROVIDER_HEALTH_CHECK_TIMEOUT = 10000;
+
+/**
  * AkashService handles all logic related to interacting with the Akash Network,
  * including SDL generation, deployment creation, bid polling, and lease management.
  */
@@ -315,7 +333,7 @@ export class AkashService {
   }
 
   /**
-   * Creates a lease with the selected provider
+   * Creates a lease with the selected provider (with retry logic)
    */
   async createLease(
     manifest: string,
@@ -324,26 +342,254 @@ export class AkashService {
     apiKey: string
   ): Promise<AkashLeaseResponse> {
     const { id: bidId } = bidResponse.bid;
-    const response = await fetch(`${AKASH_CONSOLE_API_BASE}/v1/leases`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        manifest,
-        leases: [{ dseq, gseq: bidId.gseq, oseq: bidId.oseq, provider: bidId.provider }],
-      }),
-    });
+    const provider = bidId.provider;
+    let lastError: Error;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to create lease (${response.status}): ${errorText}`);
+    for (let attempt = 1; attempt <= LEASE_MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetch(`${AKASH_CONSOLE_API_BASE}/v1/leases`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            manifest,
+            leases: [{ dseq, gseq: bidId.gseq, oseq: bidId.oseq, provider }],
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          
+          if ([429, 503, 504].includes(response.status) && attempt < LEASE_MAX_RETRIES) {
+            const delay = LEASE_RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+            console.warn(`Provider ${provider} returned ${response.status}, retrying in ${delay}ms (attempt ${attempt}/${LEASE_MAX_RETRIES})`);
+            lastError = new Error(`HTTP ${response.status}: ${errorText}`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          
+          throw new Error(`Failed to create lease (${response.status}): ${errorText}`);
+        }
+
+        const data: AkashLeaseResponse = await response.json();
+        if (!data.data?.leases?.length) throw new Error('Invalid lease response: no leases created');
+        return data;
+      } catch (error) {
+        lastError = error as Error;
+        
+        if (isRetryableAkashError(lastError) && attempt < LEASE_MAX_RETRIES) {
+          const delay = LEASE_RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          console.warn(`Retryable error for provider ${provider}: ${lastError.message}, retrying in ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        throw lastError;
+      }
     }
 
-    const data: AkashLeaseResponse = await response.json();
-    if (!data.data?.leases?.length) throw new Error('Invalid lease response: no leases created');
-    return data;
+    throw lastError!;
+  }
+
+  /**
+   * Checks if a provider is healthy by making a request to their status endpoint
+   */
+  async checkProviderHealth(providerUri: string): Promise<boolean> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), PROVIDER_HEALTH_CHECK_TIMEOUT);
+
+      const response = await fetch(`${providerUri}/status`, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      return response.ok;
+    } catch (error) {
+      const err = error as Error;
+      console.warn(`Provider health check failed: ${err.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Gets provider details from Akash API
+   */
+  async getProviderDetails(providerAddress: string, apiKey: string): Promise<{ uri: string; status: string } | null> {
+    try {
+      const response = await fetch(`${AKASH_CONSOLE_API_BASE}/v1/providers/${providerAddress}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+      });
+
+      if (!response.ok) {
+        console.warn(`Failed to get provider details for ${providerAddress}: ${response.status}`);
+        return null;
+      }
+
+      const data = await response.json();
+      return {
+        uri: data.data?.uri || `https://${providerAddress}:8443`,
+        status: data.data?.status || 'unknown',
+      };
+    } catch (error) {
+      console.warn(`Error getting provider details for ${providerAddress}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Checks if a valid certificate exists, creates one if not
+   */
+  async ensureCertificate(apiKey: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${AKASH_CONSOLE_API_BASE}/v1/certificates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new AkashCertificateError(`Failed to create certificate: ${errorText}`);
+      }
+
+      return true;
+    } catch (error) {
+      if (error instanceof AkashCertificateError) {
+        throw error;
+      }
+      const err = error as Error;
+      if (err.message.includes('already exists')) {
+        return true;
+      }
+      throw new AkashCertificateError(err.message);
+    }
+  }
+
+  /**
+    * Gets deployment details
+    */
+  async getDeploymentDetails(dseq: string, apiKey: string): Promise<DeploymentDetails | null> {
+    try {
+      const response = await fetch(`${AKASH_CONSOLE_API_BASE}/v1/deployments/${dseq}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return await response.json() as DeploymentDetails;
+    } catch (error) {
+      console.error(`Error getting deployment details for ${dseq}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Sorts bids by price (cheapest first)
+   */
+  sortBidsByPrice(bidResponses: BidResponse[]): BidResponse[] {
+    if (!bidResponses?.length) return [];
+    return [...bidResponses].sort((a, b) => 
+      parseFloat(a.bid.price.amount) - parseFloat(b.bid.price.amount)
+    );
+  }
+
+  /**
+   * Filters out blacklisted providers from bids
+   */
+  async filterBlacklistedBids(bidResponses: BidResponse[]): Promise<BidResponse[]> {
+    const blacklistRepo = getProviderBlacklistRepository();
+    const blacklistedProviders = await blacklistRepo.getAllBlacklistedProviders();
+    
+    if (blacklistedProviders.size === 0) {
+      return bidResponses;
+    }
+
+    const filtered = bidResponses.filter(bid => {
+      const provider = bid.bid.id.provider;
+      if (blacklistedProviders.has(provider)) {
+        console.log(`Skipping blacklisted provider: ${provider}`);
+        return false;
+      }
+      return true;
+    });
+
+    console.log(`Filtered out ${bidResponses.length - filtered.length} blacklisted provider(s)`);
+    return filtered;
+  }
+
+  /**
+   * Tries to create a lease with multiple providers until one succeeds
+   */
+  async tryAllBidsUntilSuccess(
+    manifest: string,
+    dseq: string,
+    bids: BidResponse[],
+    apiKey: string
+  ): Promise<{ leaseResponse: AkashLeaseResponse; provider: string }> {
+    const sortedBids = this.sortBidsByPrice(bids);
+    const failedProviders: string[] = [];
+    let lastError: Error = new Error('All providers failed');
+
+    for (let i = 0; i < sortedBids.length; i++) {
+      const bid = sortedBids[i];
+      const provider = bid.bid.id.provider;
+      
+      console.log(`Trying provider ${i + 1}/${sortedBids.length}: ${provider} (price: ${bid.bid.price.amount} ${bid.bid.price.denom})`);
+
+      try {
+        const providerDetails = await this.getProviderDetails(provider, apiKey);
+        
+        if (providerDetails) {
+          console.log(`Checking health of provider ${provider} at ${providerDetails.uri}`);
+          const isHealthy = await this.checkProviderHealth(providerDetails.uri);
+          
+          if (!isHealthy) {
+            console.warn(`Provider ${provider} failed health check, proceeding anyway...`);
+          }
+        }
+
+        const leaseResponse = await this.createLease(manifest, dseq, bid, apiKey);
+        
+        console.log(`Successfully created lease with provider ${provider}`);
+        return { leaseResponse, provider };
+      } catch (error) {
+        lastError = error as Error;
+        failedProviders.push(provider);
+        
+        if (isProviderUnavailableError(lastError)) {
+          console.warn(`Provider ${provider} unavailable: ${lastError.message}, trying next provider...`);
+          continue;
+        }
+        
+        if (!isRetryableAkashError(lastError)) {
+          console.error(`Non-retryable error from provider ${provider}: ${lastError.message}`);
+          throw lastError;
+        }
+        
+        console.warn(`Error with provider ${provider}: ${lastError.message}, trying next provider...`);
+      }
+    }
+
+    throw new AkashAllProvidersFailedError(
+      failedProviders, 
+      lastError?.message || 'All providers failed',
+      dseq
+    );
   }
 
   /**
@@ -384,35 +630,62 @@ export class AkashService {
   }
 
   /**
-   * Orchestrates the full deployment flow
+   * Orchestrates the full deployment flow with robust error handling
    */
   async deployBot(params: DeploymentParams): Promise<DeploymentResult> {
     const { akashApiKey, telegramBotToken, gatewayToken, depositUsd = MIN_DEPOSIT_USD } = params;
 
-    // Step 1: Generate SDL
-    const sdl = this.generateSDL({
-      telegramBotToken,
-      gatewayToken: gatewayToken || '2002'
-    });
+    try {
+      // Step 1: Ensure valid certificate exists
+      console.log('Ensuring valid certificate exists...');
+      await this.ensureCertificate(akashApiKey);
 
-    // Step 2: Create deployment
-    const deploymentResponse = await this.createDeployment(sdl, akashApiKey, depositUsd);
-    const { dseq, manifest } = deploymentResponse.data;
+      // Step 2: Generate SDL
+      const sdl = this.generateSDL({
+        telegramBotToken,
+        gatewayToken: gatewayToken || '2002'
+      });
 
-    // Step 3: Poll for bids
-    const bids = await this.pollForBids(dseq, akashApiKey);
+      // Step 3: Create deployment
+      console.log('Creating deployment on Akash...');
+      const deploymentResponse = await this.createDeployment(sdl, akashApiKey, depositUsd);
+      const { dseq, manifest } = deploymentResponse.data;
+      console.log(`Deployment created with dseq: ${dseq}`);
 
-    // Step 4: Select cheapest bid
-    const selectedBid = this.selectCheapestBid(bids);
-    const provider = selectedBid.bid.id.provider;
+      // Step 4: Poll for bids
+      console.log('Waiting for provider bids...');
+      const bids = await this.pollForBids(dseq, akashApiKey);
+      console.log(`Received ${bids.length} bid(s)`);
 
-    // Step 5: Create lease
-    const leaseResponse = await this.createLease(manifest, dseq, selectedBid, akashApiKey);
+      // Step 5: Filter out blacklisted providers
+      const validBids = await this.filterBlacklistedBids(bids);
+      if (validBids.length === 0) {
+        throw new AkashAllProvidersFailedError(
+          bids.map(b => b.bid.id.provider),
+          'All available providers are blacklisted',
+          dseq
+        );
+      }
+      console.log(`Proceeding with ${validBids.length} valid provider(s)`);
 
-    // Step 6: Extract service URL
-    const serviceUrl = this.extractServiceUrl(leaseResponse);
+      // Step 6: Try all bids until one succeeds (with health checks and retries)
+      console.log('Attempting to create lease with providers...');
+      const { leaseResponse, provider } = await this.tryAllBidsUntilSuccess(
+        manifest,
+        dseq,
+        validBids,
+        akashApiKey
+      );
 
-    return { dseq, provider, serviceUrl };
+      // Step 6: Extract service URL
+      const serviceUrl = this.extractServiceUrl(leaseResponse);
+      console.log(`Deployment successful! Provider: ${provider}, Service URL: ${serviceUrl}`);
+
+      return { dseq, provider, serviceUrl };
+    } catch (error) {
+      console.error('Deployment failed:', error);
+      throw error;
+    }
   }
 }
 
@@ -424,8 +697,16 @@ export const generateSDL = (params: SDLParams) => akashService.generateSDL(param
 export const createDeployment = (sdl: string, key: string, dep?: number) => akashService.createDeployment(sdl, key, dep);
 export const pollForBids = (dseq: string, key: string) => akashService.pollForBids(dseq, key);
 export const selectCheapestBid = (bids: BidResponse[]) => akashService.selectCheapestBid(bids);
+export const sortBidsByPrice = (bids: BidResponse[]) => akashService.sortBidsByPrice(bids);
 export const createLease = (man: string, ds: string, bid: BidResponse, key: string) => akashService.createLease(man, ds, bid, key);
 export const extractServiceUrl = (lease: AkashLeaseResponse) => akashService.extractServiceUrl(lease);
 export const closeDeployment = (dseq: string, key: string) => akashService.closeDeployment(dseq, key);
 export const deployBot = (params: DeploymentParams) => akashService.deployBot(params);
+export const checkProviderHealth = (uri: string) => akashService.checkProviderHealth(uri);
+export const getProviderDetails = (address: string, key: string) => akashService.getProviderDetails(address, key);
+export const ensureCertificate = (key: string) => akashService.ensureCertificate(key);
+export const getDeploymentDetails = (dseq: string, key: string) => akashService.getDeploymentDetails(dseq, key);
+export const tryAllBidsUntilSuccess = (manifest: string, dseq: string, bids: BidResponse[], key: string) => 
+  akashService.tryAllBidsUntilSuccess(manifest, dseq, bids, key);
+export const filterBlacklistedBids = (bids: BidResponse[]) => akashService.filterBlacklistedBids(bids);
 

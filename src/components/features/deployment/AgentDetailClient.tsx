@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 // ── Types ──────────────────────────────────────────────────────
-type DeploymentStatus = "pending" | "deploying" | "active" | "failed";
+type DeploymentStatus = "pending" | "paid" | "deploying" | "active" | "failed";
 
 interface StatusData {
     status: DeploymentStatus;
@@ -68,6 +68,14 @@ const statusConfig: Record<
         bg: "bg-blue-500/10",
         text: "text-blue-400",
         border: "border-blue-500/20",
+    },
+    paid: {
+        label: "Processing",
+        desc: "Payment received, deploying your bot…",
+        dot: "bg-purple-400 shadow-[0_0_6px_rgba(192,132,252,0.6)] animate-pulse",
+        bg: "bg-purple-500/10",
+        text: "text-purple-400",
+        border: "border-purple-500/20",
     },
     failed: {
         label: "Failed",
