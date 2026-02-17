@@ -1,7 +1,6 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../index';
 import { deployments, type Deployment, type NewDeployment } from '../schema';
-import { v4 as uuidv4 } from 'uuid';
 
 export type DeploymentStatus = 'pending' | 'deploying' | 'active' | 'failed';
 
@@ -33,7 +32,7 @@ export class DeploymentRepository {
      * Creates a new deployment record
      */
     async create(input: CreateDeploymentInput): Promise<Deployment> {
-        const id = input.id || uuidv4();
+        const id = input.id || crypto.randomUUID();
         const now = new Date();
 
         const newDeployment: NewDeployment = {

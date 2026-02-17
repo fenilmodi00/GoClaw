@@ -24,7 +24,6 @@ export class PolarService {
         const server = process.env.POLAR_SERVER as 'sandbox' | 'production' ?? 'sandbox';
 
         if (!accessToken) {
-            // Warn but don't throw immediately to allow app to start if not using Polar yet
             console.warn('POLAR_ACCESS_TOKEN environment variable is not set');
         }
 
@@ -47,21 +46,14 @@ export class PolarService {
 
     /**
      * Creates a Polar checkout session for a one-time payment or subscription.
-     * 
-     * @param params - Checkout session parameters
-     * @param params.email - Customer email address
-     * @param params.deploymentId - Unique deployment ID to track in metadata
-     * @param params.successUrl - URL to redirect to after successful payment
-     * @param params.productId - Specific Product ID to checkout (overrides default)
-     * @returns Promise resolving to checkout session with url
      */
     async createCheckoutSession(params: {
         email: string;
         deploymentId: string;
         successUrl: string;
-        customerId?: string; // Polar Customer ID from DB
-        productId?: string; // Specific product ID
-        metadata?: Record<string, string>; // Arbitrary metadata
+        customerId?: string;
+        productId?: string;
+        metadata?: Record<string, string>;
     }): Promise<Checkout> {
         const { email, deploymentId, successUrl, customerId, productId } = params;
 
@@ -76,7 +68,7 @@ export class PolarService {
                 products: [targetProductId],
                 successUrl: successUrl,
                 customerEmail: email,
-                customerId: customerId, // Link to existing customer if available
+                customerId: customerId,
                 metadata: {
                     deploymentId: deploymentId,
                     ...params.metadata,
@@ -92,8 +84,6 @@ export class PolarService {
 
     /**
      * Gets active subscriptions for a customer
-     * 
-     * @param customerId - Polar Customer ID
      */
     async getUserSubscriptions(customerId: string) {
         try {
@@ -110,20 +100,14 @@ export class PolarService {
     }
 
     /**
-     * Verifies the signature of a Polar webhook request.
-     * 
-     * @param payload - Raw webhook request body (as string)
-     * @param headers - Request headers
-     * @returns The verified webhook payload
-     * @throws Error if signature verification fails
+     * Validates the signature of a Polar webhook request.
      */
-    validateWebhookSignature(payload: string, headers: Record<string, string>): any { // eslint-disable-line @typescript-eslint/no-explicit-any
+    validateWebhookSignature(payload: string, headers: Record<string, string>): unknown {
         if (!this.webhookSecret) {
             throw new Error('Polar webhook secret is not configured');
         }
 
         try {
-            // Polar secrets are base64 encoded for standardwebhooks
             const base64Secret = Buffer.from(this.webhookSecret).toString('base64');
             const wh = new Webhook(base64Secret);
             return wh.verify(payload, headers);
@@ -135,11 +119,6 @@ export class PolarService {
 
     /**
      * Retrieves an existing checkout session by ID
-     * 
-     * Used to check if a pending payment link is still valid
-     * 
-     * @param sessionId - Polar checkout session ID
-     * @returns The checkout session or null if not found/expired
      */
     async getCheckoutSession(sessionId: string): Promise<Checkout | null> {
         try {
@@ -152,18 +131,9 @@ export class PolarService {
 
     /**
      * Creates a new Polar customer
-     * 
-     * @param email - Customer email
-     * @param name - Customer name (optional)
-     * @param clerkUserId - Internal User ID (Clerk ID) to map as external_id
      */
     async createCustomer(email: string, name?: string, clerkUserId?: string): Promise<Customer> {
         try {
-            // First try to list customers by email to check existence
-            // The Polar SDK might throw a 422 if we try to create duplicate.
-            // But listing first is safer if the list API is available and fast.
-            // However, typical pattern with robust APIs is "create, if fail check error".
-
             const customer = await this.polar.customers.create({
                 email,
                 name,
@@ -173,15 +143,12 @@ export class PolarService {
         } catch (error) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const err = error as any;
-            // Check if error is "already exists"
             if (err.message && (err.message.includes('already exists') || JSON.stringify(err).includes('already exists'))) {
                 console.log(`Customer ${email} already exists, fetching details...`);
-                // Fetch and return existing customer
                 const list = await this.polar.customers.list({
                     email: email,
                 });
 
-                // Polar list returns { items: [...] }
                 const existing = list.result.items?.find(c => c.email === email);
                 if (existing) {
                     return existing;
@@ -194,10 +161,6 @@ export class PolarService {
 
     /**
      * Records a usage event for a customer
-     * 
-     * @param customerId - Polar Customer ID (not Clerk ID)
-     * @param eventName - Name of the event (e.g., 'ai_usage')
-     * @param amount - Amount to record (e.g., token count)
      */
     async recordUsage(polarCustomerId: string, eventName: string, amount: number): Promise<void> {
         try {
@@ -214,32 +177,26 @@ export class PolarService {
                 ]
             });
 
-            // Invalidate meter cache for this customer
             await cacheService.delete(`polar:meters:${polarCustomerId}`);
         } catch (error) {
-            // Log but don't crash the flow usually, but here we might want to know
             const err = error as Error;
             console.error(`Failed to record usage event: ${err.message}`);
         }
     }
 
-
     /**
      * Gets customer meter balance
-     * 
-     * @param customerId - Polar Customer ID
-     */
-    /**
-     * Gets customer meter balance
-     * 
-     * @param customerId - Polar Customer ID
      */
     async getCustomerMeters(customerId: string): Promise<CustomerMeter[]> {
         const cacheKey = `polar:meters:${customerId}`;
-        const cached = await cacheService.get<CustomerMeter[]>(cacheKey);
-
-        if (cached) {
-            return cached;
+        
+        try {
+            const cached = await cacheService.get<CustomerMeter[]>(cacheKey);
+            if (cached) {
+                return cached;
+            }
+        } catch {
+            // Fall through to fetch from API
         }
 
         try {
@@ -249,8 +206,11 @@ export class PolarService {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const meters = (response as any).items || [];
 
-            // Cache for 30 seconds (shorter TTL for near real-time updates)
-            await cacheService.set(cacheKey, meters, 30);
+            try {
+                await cacheService.set(cacheKey, meters, 30);
+            } catch {
+                // Best effort caching
+            }
 
             return meters;
         } catch (error) {
@@ -258,12 +218,9 @@ export class PolarService {
             return [];
         }
     }
+
     /**
      * Validates that the ai_usage meter exists for a customer
-     * Creates a warning log if meter is missing
-     * 
-     * @param customerId - Polar Customer ID
-     * @returns boolean indicating if meter exists
      */
     async validateMeterExists(customerId: string): Promise<boolean> {
         try {
@@ -273,8 +230,7 @@ export class PolarService {
             );
             
             if (!hasAiUsageMeter) {
-                console.warn(`⚠️  ai_usage meter not found for customer ${customerId}. ` +
-                            `Please create the meter in Polar dashboard.`);
+                console.warn(`ai_usage meter not found for customer ${customerId}. Please create the meter in Polar dashboard.`);
             }
             
             return hasAiUsageMeter;
@@ -294,7 +250,6 @@ export class PolarService {
         fallbackToLocal: boolean = true
     ): Promise<{ success: boolean; recorded: boolean; error?: string }> {
         try {
-            // Validate meter exists first
             const meterExists = await this.validateMeterExists(polarCustomerId);
             
             if (!meterExists && !fallbackToLocal) {
@@ -305,7 +260,6 @@ export class PolarService {
                 };
             }
             
-            // Record to Polar
             await this.recordUsage(polarCustomerId, eventName, amount);
             
             return { success: true, recorded: true };
@@ -313,7 +267,6 @@ export class PolarService {
             const err = error as Error;
             console.error(`Failed to record usage to Polar: ${err.message}`);
             
-            // Could add local fallback logging here
             return { 
                 success: fallbackToLocal, 
                 recorded: false, 
@@ -324,9 +277,6 @@ export class PolarService {
 
     /**
      * Subscribes a customer to a product (e.g., Free Tier)
-     * 
-     * @param customerId - Polar Customer ID
-     * @param productId - Product ID to subscribe to
      */
     async subscribeCustomer(customerId: string, productId: string): Promise<void> {
         try {
@@ -336,7 +286,6 @@ export class PolarService {
             });
         } catch (error) {
             console.error('Failed to subscribe customer:', error);
-            // Don't throw, just log. This is a "nice to have" for free tier.
         }
     }
 }

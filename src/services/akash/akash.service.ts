@@ -2,6 +2,7 @@ import { generateSDLTemplate } from './sdl.template';
 import { isRetryableAkashError, isProviderUnavailableError, type DeploymentDetails } from '@/lib/akash-utils';
 import { AkashAllProvidersFailedError, AkashCertificateError } from '@/lib/errors';
 import { getProviderBlacklistRepository } from '@/db/repositories/blacklist-repository';
+import { config } from '@/config';
 
 /**
  * Parameters for generating SDL configuration
@@ -9,7 +10,6 @@ import { getProviderBlacklistRepository } from '@/db/repositories/blacklist-repo
 export interface SDLParams {
   telegramBotToken: string;
   gatewayToken?: string;
-  modelId?: string;
 }
 
 /**
@@ -19,7 +19,6 @@ export interface DeploymentParams {
   akashApiKey: string;
   telegramBotToken: string;
   gatewayToken?: string;
-  modelId?: string;
   depositUsd?: number;
 }
 
@@ -148,11 +147,11 @@ export interface AkashLeaseResponse {
  * for deploying an OpenClaw bot with Telegram integration.
  * 
  * The SDL defines:
- * - Container image (ghcr.io/fenilmodi00/openclaw-docker:0.0.4)
+ * - Container image (ghcr.io/fenilmodi00/openclaw-docker:main-0a3827a)
  * - Environment variables for AkashML API and Telegram bot
- * - Model: Dynamic selection via AkashML
- * - Exposed port: 18789 (gateway)
- * - Resource requirements (1.5 CPU, 3GB memory, 2GB ephemeral + 10GB persistent storage)
+ * - Model: MiniMaxAI/MiniMax-M2.5 via AkashML
+ * - Two exposed ports: 18789 (gateway) and 18790 (bridge)
+ * - Resource requirements (1 CPU, 2GB memory, 1GB ephemeral + 5GB persistent storage)
  * - Persistent storage for OpenClaw workspace
  * - Pricing in IBC token
  * 
@@ -184,42 +183,70 @@ function sanitizeEnvValue(value: string): string {
 /**
  * Base URL for Akash Console API
  */
-const AKASH_CONSOLE_API_BASE = process.env.AKASH_CONSOLE_API_URL || 'https://console-api.akash.network';
+const AKASH_CONSOLE_API_BASE = config.akash.apiBaseUrl;
 
 /**
  * Maximum number of polling attempts for bids
  */
-const MAX_BID_POLL_ATTEMPTS = 20;
+const MAX_BID_POLL_ATTEMPTS = config.akash.maxBidPollAttempts;
 
 /**
  * Polling interval in milliseconds (3 seconds as recommended by Akash docs)
  */
-const BID_POLL_INTERVAL_MS = 3000;
+const BID_POLL_INTERVAL_MS = config.akash.bidPollIntervalMs;
 
 /**
  * Maximum timeout for bid polling in milliseconds (60 seconds typical)
  */
-const BID_POLL_TIMEOUT_MS = 60 * 1000;
+const BID_POLL_TIMEOUT_MS = config.akash.bidPollTimeoutMs;
 
 /**
  * Minimum deposit amount in USD (as per Akash Console API requirements)
  */
-const MIN_DEPOSIT_USD = 5;
+const MIN_DEPOSIT_USD = config.akash.minDepositUsd;
 
 /**
  * Maximum retries for lease creation
  */
-const LEASE_MAX_RETRIES = 3;
+const LEASE_MAX_RETRIES = config.akash.leaseMaxRetries;
 
 /**
  * Base delay for lease retry (exponential backoff)
  */
-const LEASE_RETRY_BASE_DELAY_MS = 2000;
+const LEASE_RETRY_BASE_DELAY_MS = config.akash.leaseRetryBaseDelayMs;
 
 /**
  * Timeout for provider health check
  */
-const PROVIDER_HEALTH_CHECK_TIMEOUT = 10000;
+const PROVIDER_HEALTH_CHECK_TIMEOUT = config.akash.providerHealthCheckTimeout;
+
+/**
+ * Circuit breaker options for Akash API calls
+ */
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 1000
+): Promise<T> {
+  let lastError: Error | undefined;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      
+      if (attempt < maxRetries) {
+        const delay = baseDelayMs * Math.pow(2, attempt - 1);
+        console.warn(`Attempt ${attempt} failed, retrying in ${delay}ms: ${lastError.message}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError;
+}
 
 /**
  * AkashService handles all logic related to interacting with the Akash Network,
@@ -230,8 +257,8 @@ export class AkashService {
    * Generates the SDL (Stack Definition Language) configuration for Akash deployment.
    * interpolates sensitive tokens and configuration values into the YAML template.
    */
-  generateSDL(params: SDLParams): string {
-    const { telegramBotToken, gatewayToken = '2002', modelId = 'MiniMaxAI/MiniMax-M2.5' } = params;
+  generateSDL(params: { telegramBotToken: string; gatewayToken?: string }): string {
+    const { telegramBotToken, gatewayToken = '2002' } = params;
 
     // Get AkashML API key from environment
     const akashmlApiKey = process.env.AKASHML_KEY || '';
@@ -247,7 +274,6 @@ export class AkashService {
       akashmlApiKey,
       safeBotToken,
       safeGatewayToken,
-      modelId,
     });
   }
 
@@ -263,30 +289,32 @@ export class AkashService {
       throw new Error(`Deposit must be at least $${MIN_DEPOSIT_USD} USD`);
     }
 
-    const response = await fetch(`${AKASH_CONSOLE_API_BASE}/v1/deployments`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        data: {
-          sdl,
-          deposit: depositUsd,
+    return withRetry(async () => {
+      const response = await fetch(`${AKASH_CONSOLE_API_BASE}/v1/deployments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
         },
-      }),
-    });
+        body: JSON.stringify({
+          data: {
+            sdl,
+            deposit: depositUsd,
+          },
+        }),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to create deployment (${response.status}): ${errorText}`);
-    }
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to create deployment (${response.status}): ${errorText}`);
+      }
 
-    const data: AkashDeploymentResponse = await response.json();
-    if (!data.data?.dseq || !data.data?.manifest) {
-      throw new Error('Invalid deployment response: missing dseq or manifest');
-    }
-    return data;
+      const data: AkashDeploymentResponse = await response.json();
+      if (!data.data?.dseq || !data.data?.manifest) {
+        throw new Error('Invalid deployment response: missing dseq or manifest');
+      }
+      return data;
+    }, 3, 2000);
   }
 
   /**
@@ -636,7 +664,7 @@ export class AkashService {
    * Orchestrates the full deployment flow with robust error handling
    */
   async deployBot(params: DeploymentParams): Promise<DeploymentResult> {
-    const { akashApiKey, telegramBotToken, gatewayToken, modelId, depositUsd = MIN_DEPOSIT_USD } = params;
+    const { akashApiKey, telegramBotToken, gatewayToken, depositUsd = MIN_DEPOSIT_USD } = params;
 
     try {
       // Step 1: Ensure valid certificate exists
@@ -646,8 +674,7 @@ export class AkashService {
       // Step 2: Generate SDL
       const sdl = this.generateSDL({
         telegramBotToken,
-        gatewayToken: gatewayToken || '2002',
-        modelId
+        gatewayToken: gatewayToken || '2002'
       });
 
       // Step 3: Create deployment
@@ -698,19 +725,19 @@ export const akashService = new AkashService();
 
 // Backward compatibility exports
 export const generateSDL = (params: SDLParams) => akashService.generateSDL(params);
-export const createDeployment = (sdl: string, key: string, dep?: number) => akashService.createDeployment(sdl, key, dep);
-export const pollForBids = (dseq: string, key: string) => akashService.pollForBids(dseq, key);
+export const createDeployment = (sdl: string, apiKey: string, depositUsd?: number) => akashService.createDeployment(sdl, apiKey, depositUsd);
+export const pollForBids = (dseq: string, apiKey: string) => akashService.pollForBids(dseq, apiKey);
 export const selectCheapestBid = (bids: BidResponse[]) => akashService.selectCheapestBid(bids);
 export const sortBidsByPrice = (bids: BidResponse[]) => akashService.sortBidsByPrice(bids);
-export const createLease = (man: string, ds: string, bid: BidResponse, key: string) => akashService.createLease(man, ds, bid, key);
+export const createLease = (manifest: string, dseq: string, bid: BidResponse, apiKey: string) => akashService.createLease(manifest, dseq, bid, apiKey);
 export const extractServiceUrl = (lease: AkashLeaseResponse) => akashService.extractServiceUrl(lease);
-export const closeDeployment = (dseq: string, key: string) => akashService.closeDeployment(dseq, key);
+export const closeDeployment = (dseq: string, apiKey: string) => akashService.closeDeployment(dseq, apiKey);
 export const deployBot = (params: DeploymentParams) => akashService.deployBot(params);
-export const checkProviderHealth = (uri: string) => akashService.checkProviderHealth(uri);
-export const getProviderDetails = (address: string, key: string) => akashService.getProviderDetails(address, key);
-export const ensureCertificate = (key: string) => akashService.ensureCertificate(key);
-export const getDeploymentDetails = (dseq: string, key: string) => akashService.getDeploymentDetails(dseq, key);
-export const tryAllBidsUntilSuccess = (manifest: string, dseq: string, bids: BidResponse[], key: string) => 
-  akashService.tryAllBidsUntilSuccess(manifest, dseq, bids, key);
+export const checkProviderHealth = (providerUri: string) => akashService.checkProviderHealth(providerUri);
+export const getProviderDetails = (providerAddress: string, apiKey: string) => akashService.getProviderDetails(providerAddress, apiKey);
+export const ensureCertificate = (apiKey: string) => akashService.ensureCertificate(apiKey);
+export const getDeploymentDetails = (dseq: string, apiKey: string) => akashService.getDeploymentDetails(dseq, apiKey);
+export const tryAllBidsUntilSuccess = (manifest: string, dseq: string, bids: BidResponse[], apiKey: string) => 
+  akashService.tryAllBidsUntilSuccess(manifest, dseq, bids, apiKey);
 export const filterBlacklistedBids = (bids: BidResponse[]) => akashService.filterBlacklistedBids(bids);
 

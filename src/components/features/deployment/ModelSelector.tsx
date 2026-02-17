@@ -3,36 +3,10 @@
 import Image from "next/image";
 
 export const AI_MODELS = [
-  { 
-    id: "MiniMaxAI/MiniMax-M2.5" as const, 
-    displayId: "minimax-m2.5",
-    name: "MiniMax M2.5", 
-    logo: "/logo/akashml.png", 
-    showName: true, 
-    invert: true, 
-    comingSoon: false 
-  },
-  { 
-    id: "meta-llama/Llama-3.2-3B-Instruct" as const, 
-    displayId: "llama-3.2",
-    name: "Llama 3.2", 
-    logo: "/logo/meta.png", 
-    showName: true, 
-    invert: false, 
-    comingSoon: false 
-  },
-  { 
-    id: "google/gemma-3-4b-it" as const, 
-    displayId: "gemma-3",
-    name: "Gemma 3", 
-    logo: "/logo/google-gemini-icon.png", 
-    showName: true, 
-    invert: false, 
-    comingSoon: false 
-  },
+  { id: "minimax-m2.5" as const, name: "AkashML", logo: "/logo/akashml.png", showName: false, invert: true, comingSoon: false },
+  { id: "gpt-3.2" as const, name: "ChatGPT", logo: "/logo/openai.png", showName: true, invert: true, comingSoon: true },
+  { id: "gemini-3-flash" as const, name: "Gemini", logo: "/logo/google-gemini-icon.png", showName: true, invert: false, comingSoon: true },
 ];
-
-export type ModelId = typeof AI_MODELS[number]["id"];
 
 interface ModelSelectorProps {
   value: string;

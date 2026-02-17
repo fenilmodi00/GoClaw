@@ -8,7 +8,7 @@ import { useUser, GoogleOneTap } from "@clerk/nextjs";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
-import { ModelSelector, AI_MODELS } from "./ModelSelector";
+import { ModelSelector } from "./ModelSelector";
 import { ChannelSelector } from "./ChannelSelector";
 import { UserProfile } from "./UserProfile";
 import { TelegramConnectDialog } from "../telegram/TelegramConnectDialog";
@@ -25,7 +25,7 @@ import {
 const DeploymentFormSchema = v.object({
   model: v.pipe(
     v.string(),
-    v.picklist(AI_MODELS.map(m => m.id), "Please select an AI model for your bot")
+    v.picklist(["minimax-m2.5", "gpt-3.2", "gemini-3-flash"], "Please select an AI model for your bot")
   ),
   channel: v.pipe(
     v.string(),
@@ -34,7 +34,7 @@ const DeploymentFormSchema = v.object({
   channelToken: v.pipe(
     v.string(),
     v.minLength(1, "A valid bot token is required to connect"),
-    v.regex(/^\d{8,}:[A-Za-z0-9_-]{35,}$/, "Invalid Telegram bot token format. Please check your token.")
+    v.regex(/^-?\d:[A-Za-z0-9_-]{35,}$/, "Invalid Telegram bot token format. Please check your token.")
   ),
   tier: v.pipe(
     v.string(),
@@ -56,7 +56,7 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
 
   const form = useForm({
     defaultValues: {
-      model: "" as typeof AI_MODELS[number]["id"] | "",
+      model: "" as "minimax-m2.5" | "gpt-3.2" | "gemini-3-flash" | "",
       channel: "" as "telegram" | "discord" | "whatsapp" | "",
       channelToken: "",
       tier: "" as "starter" | "pro" | "business" | "",
@@ -150,8 +150,8 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
             validators={{
               onChange: v.pipe(
                 v.string(),
-                v.picklist(
-                  AI_MODELS.map(m => m.id),
+              v.picklist(
+                  ["minimax-m2.5", "gpt-3.2", "gemini-3-flash"],
                   "Please select a valid AI model"
                 )
               ),
@@ -161,7 +161,7 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
               <ModelSelector
                 value={field.state.value}
                 onChange={(value) =>
-                  field.handleChange(value as typeof AI_MODELS[number]["id"])
+                  field.handleChange(value as "minimax-m2.5" | "gpt-3.2" | "gemini-3-flash")
                 }
                 error={field.state.meta.errors[0] || undefined}
               />

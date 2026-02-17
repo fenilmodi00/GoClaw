@@ -49,3 +49,4 @@ next-env.d.ts
 
 # Build artifacts
 build_output.txt
+.env.test

@@ -98,12 +98,3 @@ export function getEncryptionService(): EncryptionService {
   }
   return _encryptionService;
 }
-
-// Export a singleton instance for use throughout the application
-// This will be initialized on first access
-export const encryptionService = new Proxy({} as EncryptionService, {
-  get(_target, prop) {
-    const service = getEncryptionService();
-    return service[prop as keyof EncryptionService];
-  }
-});

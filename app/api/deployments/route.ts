@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { auth, clerkClient } from '@clerk/nextjs/server';
-import { deploymentService, userService } from '@/services';
+import { auth } from '@clerk/nextjs/server';
+import { deploymentService } from '@/services';
 import { logger } from '@/lib/logger';
 import { rateLimit } from '@/middleware/rate-limit';
+import { getOrCreateUserFromClerk } from '@/lib/user-utils';
 
 /**
  * GET /api/deployments
@@ -40,38 +41,14 @@ export async function GET() {
 
     logger.debug('Fetching deployments for user', { clerkUserId });
 
-    // Get user from database
-    let user = await userService.getUserByClerkId(clerkUserId);
+    // Get or create user from Clerk
+    const { user } = await getOrCreateUserFromClerk(clerkUserId);
 
     if (!user) {
-      logger.info('User not found in database, creating user automatically');
-
-      // Get user email from Clerk
-      const client = await clerkClient();
-      const clerkUser = await client.users.getUser(clerkUserId);
-      const userEmail = clerkUser.emailAddresses[0]?.emailAddress;
-
-      if (!userEmail) {
-        logger.error('Deployments API: User email not found');
-        return NextResponse.json(
-          { error: 'User email not found. Please update your profile.' },
-          { status: 400 }
-        );
-      }
-
-      // Check if email exists with different Clerk ID (user was deleted and recreated)
-      const existingUserByEmail = await userService.getUserByEmail(userEmail);
-      if (existingUserByEmail) {
-        logger.warn('User with same email exists but different Clerk ID, using existing user', {
-          oldClerkId: existingUserByEmail.clerkUserId,
-          newClerkId: clerkUserId
-        });
-        user = existingUserByEmail;
-      } else {
-        // Create new user
-        user = await userService.createUserFromClerk(clerkUserId, userEmail);
-        logger.info('User created automatically', { userId: user.id });
-      }
+      return NextResponse.json(
+        { error: 'Failed to get or create user account.' },
+        { status: 500 }
+      );
     }
 
     // Get all deployments for user

@@ -5,6 +5,7 @@ import { deploymentService, polarService, userService } from '@/services';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { logger } from '@/lib/logger';
 import { rateLimit } from '@/middleware/rate-limit';
+import { getOrCreateUserFromClerk } from '@/lib/user-utils';
 
 /**
  * POST /api/checkout
@@ -92,39 +93,17 @@ export async function POST(request: NextRequest) {
     const data = validationResult.output;
     logger.debug('Validation passed');
 
-    // Check if user exists in our database
-    let user = await userService.getUserByClerkId(clerkUserId);
+    // Get or create user from Clerk
+    const { user } = await getOrCreateUserFromClerk(clerkUserId);
 
     if (!user) {
-      logger.info('User not found in database, creating new user');
-
-      // Check if email exists with different Clerk ID (user was deleted and recreated)
-      const existingUserByEmail = await userService.getUserByEmail(userEmail);
-      if (existingUserByEmail) {
-        logger.warn('User with same email exists but different Clerk ID, updating Clerk ID', {
-          oldClerkId: existingUserByEmail.clerkUserId,
-          newClerkId: clerkUserId
-        });
-
-        // Persist the new Clerk ID to the database (Crucial for webhook lookup)
-        const updatedUser = await userService.updateClerkId(existingUserByEmail.id, clerkUserId);
-
-        if (updatedUser) {
-          // Use the updated user record
-          user = updatedUser;
-          logger.info('User account linked successfully', { userId: user.id });
-        } else {
-          logger.error('Failed to update Clerk ID for existing user', { userId: existingUserByEmail.id });
-          // Fallback to existing user, but this might cause issues downstream if webhook relies on new ID
-          user = existingUserByEmail;
-        }
-      } else {
-        user = await userService.createUserFromClerk(clerkUserId, userEmail);
-        logger.info('User created', { userId: user.id });
-      }
-    } else {
-      logger.debug('User found', { userId: user.id });
+      return NextResponse.json(
+        { error: 'Failed to get or create user account.' },
+        { status: 500 }
+      );
     }
+
+    logger.debug('User found', { userId: user.id });
 
     // Ensure Polar customer is linked if missing
     if (user && !user.polarCustomerId) {
@@ -215,10 +194,6 @@ export async function POST(request: NextRequest) {
     // Get the base URL for success/cancel redirects
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const successUrl = `${baseUrl}/dashboard`;
-    // const cancelUrl = baseUrl; // Polar might not require cancelUrl or use it differently? SDK doesn't show it in params I checked.
-    // Checked SDK logic: create params. 
-    // I noticed in PolarService.createCheckoutSession I only passed successUrl.
-    // Let's stick to what I implemented in PolarService.
 
     // Validate Polar Customer ID to avoid 422 errors
     let polarCustomerId = user.polarCustomerId || undefined;
