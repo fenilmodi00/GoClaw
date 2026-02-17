@@ -1,6 +1,6 @@
 import { generateSDLTemplate } from './sdl.template';
 import { isRetryableAkashError, isProviderUnavailableError, type DeploymentDetails } from '@/lib/akash-utils';
-import { AkashAllProvidersFailedError, AkashCertificateError } from '@/lib/errors';
+import { AkashAllProvidersFailedError } from '@/lib/errors';
 import { getProviderBlacklistRepository } from '@/db/repositories/blacklist-repository';
 import { config } from '@/config';
 
@@ -289,8 +289,11 @@ export class AkashService {
       throw new Error(`Deposit must be at least $${MIN_DEPOSIT_USD} USD`);
     }
 
+    const apiUrl = `${AKASH_CONSOLE_API_BASE}/v1/deployments`;
+    console.log(`Creating deployment at: ${apiUrl}`);
+
     return withRetry(async () => {
-      const response = await fetch(`${AKASH_CONSOLE_API_BASE}/v1/deployments`, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -304,16 +307,36 @@ export class AkashService {
         }),
       });
 
+      const errorText = await response.text();
+      
+      // Check if response is HTML (API error or Cloudflare block)
+      if (!response.ok && (errorText.trim().startsWith('<!DOCTYPE') || errorText.trim().startsWith('<html'))) {
+        console.error('Akash API returned HTML error page:', errorText.substring(0, 500));
+        
+        // Check for specific error patterns
+        if (errorText.includes('404') || errorText.includes('Not Found')) {
+          throw new Error(`Akash API endpoint not found. Check if AKASH_CONSOLE_API_URL is correct. URL: ${apiUrl}`);
+        }
+        if (errorText.includes('Cloudflare') || errorText.includes('challenge')) {
+          throw new Error(`Akash API blocked by Cloudflare. Check if API key is valid.`);
+        }
+        
+        throw new Error(`Akash API returned error: ${errorText.substring(0, 200)}`);
+      }
+
       if (!response.ok) {
-        const errorText = await response.text();
         throw new Error(`Failed to create deployment (${response.status}): ${errorText}`);
       }
 
-      const data: AkashDeploymentResponse = await response.json();
-      if (!data.data?.dseq || !data.data?.manifest) {
-        throw new Error('Invalid deployment response: missing dseq or manifest');
+      try {
+        const data: AkashDeploymentResponse = JSON.parse(errorText);
+        if (!data.data?.dseq || !data.data?.manifest) {
+          throw new Error('Invalid deployment response: missing dseq or manifest');
+        }
+        return data;
+      } catch (parseError) {
+        throw new Error(`Failed to parse deployment response: ${errorText.substring(0, 200)}`);
       }
-      return data;
     }, 3, 2000);
   }
 
