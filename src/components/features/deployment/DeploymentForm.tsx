@@ -322,7 +322,7 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
             "w-full font-semibold py-3 text-sm flex items-center justify-center gap-2 rounded-xl transition-all duration-300",
             !selectedTier && hasToken
               ? "bg-white/[0.02] text-white/30 border border-white/[0.05] cursor-not-allowed"
-              : "bg-gradient-to-r from-orange-500 to-orange-400 text-white hover:from-orange-400 hover:to-orange-300 shadow-lg hover:shadow-xl"
+              : "bg-white text-black hover:bg-gray-200 shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)]"
           )}
           disabled={isSubmitting || (hasToken && !selectedTier)}
         >

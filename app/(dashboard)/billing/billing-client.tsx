@@ -104,8 +104,8 @@ export default function BillingClient({ initialBalance }: BillingClientProps) {
                 <div className="flex items-center justify-between">
                     <h2 className="text-base font-semibold text-white">Credits</h2>
                     <div className="text-right">
-                        <p className="text-2xl font-bold text-white">${initialBalance.toFixed(2)}</p>
-                        <p className="text-xs text-gray-500">available (Free Tier + Credits)</p>
+                        <p className="text-2xl font-bold text-white">${(initialBalance ?? 0).toFixed(2)}</p>
+                        <p className="text-xs text-gray-500">available credits</p>
                     </div>
                 </div>
 
