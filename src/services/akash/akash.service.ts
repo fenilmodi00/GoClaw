@@ -475,10 +475,53 @@ export class AkashService {
   }
 
   /**
+   * Checks for existing valid certificates
+   */
+  async listCertificates(apiKey: string): Promise<{ certificates: Array<{ id: number; state: string }> } | null> {
+    try {
+      const response = await fetch(`${AKASH_CONSOLE_API_BASE}/v1/certificates`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        return null;
+      }
+
+      return await response.json() as { certificates: Array<{ id: number; state: string }> };
+    } catch (error) {
+      console.warn('Error listing certificates:', error);
+      return null;
+    }
+  }
+
+  /**
    * Checks if a valid certificate exists, creates one if not
    */
   async ensureCertificate(apiKey: string): Promise<boolean> {
     try {
+      // First, try to list existing certificates
+      const certList = await this.listCertificates(apiKey);
+      
+      if (certList?.certificates) {
+        // Check if there's a valid certificate
+        const validCert = certList.certificates.find(cert => cert.state === 'valid');
+        if (validCert) {
+          console.log('Found valid certificate, using existing certificate');
+          return true;
+        }
+      }
+
+      // No valid certificate found, try to create one
+      console.log('No valid certificate found, creating new certificate...');
+      
       const response = await fetch(`${AKASH_CONSOLE_API_BASE}/v1/certificates`, {
         method: 'POST',
         headers: {
@@ -488,18 +531,46 @@ export class AkashService {
         body: JSON.stringify({}),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new AkashCertificateError(`Failed to create certificate: ${errorText}`);
+      if (response.ok) {
+        return true;
       }
 
-      return true;
+      const errorText = await response.text();
+      
+      // Check if response is HTML (API error page)
+      if (errorText.trim().startsWith('<!DOCTYPE') || errorText.trim().startsWith('<html')) {
+        // Check if it looks like the certificate was already created
+        // HTML responses often mean the cert already exists
+        console.warn('Received HTML response from certificate API, checking if certificate exists...');
+        
+        // Try to list certificates again to verify
+        const certListAfter = await this.listCertificates(apiKey);
+        if (certListAfter?.certificates?.some(cert => cert.state === 'valid')) {
+          console.log('Certificate was created (found valid certificate after HTML response)');
+          return true;
+        }
+        
+        // If we get HTML but no valid cert, it might be an actual error
+        throw new AkashCertificateError(`Certificate API returned error page: ${errorText.substring(0, 200)}`);
+      }
+
+      // Try to parse as JSON to check for "already exists" error
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error?.includes('already exists') || errorJson.message?.includes('already exists')) {
+          return true;
+        }
+      } catch {
+        // Not JSON, continue with error
+      }
+
+      throw new AkashCertificateError(`Failed to create certificate: ${errorText.substring(0, 500)}`);
     } catch (error) {
       if (error instanceof AkashCertificateError) {
         throw error;
       }
       const err = error as Error;
-      if (err.message.includes('already exists')) {
+      if (err.message.includes('already exists') || err.message.includes('Certificate was created')) {
         return true;
       }
       throw new AkashCertificateError(err.message);
