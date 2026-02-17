@@ -1,202 +1,118 @@
-# Database Architecture
+# Database Layer (`src/db`)
 
-GoClaw uses **Turso** (distributed SQLite) with a professional repository pattern architecture.
+GoClaw uses Turso (SQLite) with Drizzle ORM and a repository pattern.
 
-## Architecture Overview
+## Layout
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     API Layer                            │
-│  (app/api/checkout, app/api/webhooks, etc.)             │
-└────────────────────┬────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────┐
-│                  Service Layer                           │
-│  • DeploymentService (services/deployment/)             │
-│  • UserService (services/user/)                         │
-│  Business logic, validation, orchestration              │
-└────────────────────┬────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────┐
-│                Repository Layer                          │
-│  • DeploymentRepository (db/repositories/)              │
-│  • UserRepository (db/repositories/)                    │
-│  Data access, encryption, queries                       │
-└────────────────────┬────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────┐
-│                  Database Layer                          │
-│  Turso (SQLite) + Drizzle ORM                           │
-│  Schema: users, deployments, llmUsageLog                │
-└─────────────────────────────────────────────────────────┘
-```
+- `src/db/index.ts` - database client initialization
+- `src/db/schema.ts` - table definitions and inferred TS types
+- `src/db/repositories/` - data access classes
+- `src/db/migrations/` - SQL migrations + migration metadata
 
-## Key Features
+## Tables
 
-### 1. Repository Pattern
-- Clean separation of data access from business logic
-- Centralized query logic
-- Easy to test and mock
-- Type-safe operations
+### `users`
 
-### 2. Service Layer
-- Business logic orchestration
-- Cross-repository operations
-- Transaction management
-- Validation and error handling
+Purpose:
 
-### 3. Automatic Encryption
-- Sensitive fields encrypted transparently
-- AES-256-GCM encryption
-- Decryption on retrieval
+- maps Clerk identities to internal users
+- stores Polar customer linkage and subscription tier/status
 
-### 4. Payment Link Reuse
-- Detects duplicate pending deployments
-- Reuses existing Stripe sessions
-- Prevents duplicate charges
+Key columns:
 
-### 5. User-Deployment Tracking
-- Foreign key relationships
-- User dashboard support
-- Deployment history queries
+- `id` (UUID PK)
+- `clerk_user_id` (unique)
+- `email` (unique)
+- `polar_customer_id` (unique, nullable)
+- `tier` (`starter` default)
+- `subscription_status` (`active` default)
+- `created_at`, `updated_at`
 
-## Database Setup
+### `deployments`
 
-### 1. Install Turso CLI
+Purpose:
 
-```bash
-# macOS/Linux
-curl -sSfL https://get.tur.so/install.sh | bash
+- stores requested deployment configuration and lifecycle state
+- tracks payment linkage and Akash deployment details
 
-# Windows (PowerShell)
-irm https://get.tur.so/install.ps1 | iex
-```
+Key columns:
 
-### 2. Create Database
+- `id` (UUID PK)
+- `user_id` (FK to `users.id`)
+- `model`, `channel`
+- `channel_token`, `channel_api_key` (sensitive values)
+- `claw_api_key` (bot auth key)
+- `akash_deployment_id`, `akash_lease_id`, `provider_url`
+- `status` (`pending` | `deploying` | `active` | `failed`)
+- `payment_provider` (`stripe` | `polar`)
+- `stripe_session_id`, `stripe_payment_intent_id`
+- `polar_id`
+- `error_message`
+- `created_at`, `updated_at`
 
-```bash
-turso db create goclaw
-turso db show goclaw
-turso db tokens create goclaw
-```
+### `llm_usage_log`
 
-### 3. Configure Environment
+Purpose:
 
-```env
-DATABASE_URL="libsql://goclaw-[your-username].turso.io"
-DATABASE_AUTH_TOKEN="eyJhbGc..."
-ENCRYPTION_KEY="<32-byte-hex-string>"
-```
+- records token usage events for quota/billing logic
 
-Generate encryption key:
-```bash
-openssl rand -hex 32
-```
+Key columns:
 
-### 4. Run Migrations
+- `id` (UUID PK)
+- `user_id` (FK)
+- `deployment_id` (optional FK)
+- `tokens_used`
+- `provider`
+- `timestamp`
 
-```bash
-bun run db:generate
-bun run db:migrate
-```
+### `provider_blacklist`
 
-## Schema
+Purpose:
 
-### Users Table
-- `id` - UUID primary key
-- `clerk_user_id` - Clerk authentication ID (unique, indexed)
-- `email` - User email (unique, indexed)
-- `created_at` - Registration timestamp
-- `updated_at` - Last update timestamp
+- excludes Akash providers that repeatedly fail or are unhealthy
 
-### Deployments Table
-- `id` - UUID primary key
-- `user_id` - Foreign key to users (indexed)
-- `email` - User email
-- `model` - LLM model selection
-- `channel` - Communication channel (telegram/discord/whatsapp)
-- `channel_token` - Encrypted bot token
-- `channel_api_key` - Encrypted API key (optional)
-- `akash_deployment_id` - Akash deployment DSEQ
-- `akash_lease_id` - Akash lease identifier
-- `provider_url` - Deployment URL
-- `status` - Deployment status (pending/deploying/active/failed)
-- `stripe_session_id` - Stripe checkout session (indexed)
-- `stripe_payment_intent_id` - Stripe payment intent
-- `error_message` - Error details for failed deployments
-- `created_at` - Creation timestamp
-- `updated_at` - Last update timestamp
+Key columns:
 
-### LLM Usage Log Table
-- `id` - UUID primary key
-- `user_id` - Foreign key to users (indexed)
-- `deployment_id` - Foreign key to deployments (optional)
-- `tokens_used` - Token consumption count
-- `provider` - LLM provider name
-- `timestamp` - Usage timestamp (indexed)
+- `provider_address` (PK)
+- `reason`
+- `created_at`
+- `expires_at` (nullable)
 
-## Usage Examples
+## Repositories
 
-### Create Deployment
-```typescript
-import { deploymentService } from '@/services/deployment/deployment-service';
+### User repository
 
-const deployment = await deploymentService.createDeployment({
-  userId: user.id,
-  email: user.email,
-  model: 'claude-opus-4.5',
-  channel: 'telegram',
-  channelToken: 'bot_token_here',
-  stripeSessionId: session.id,
-});
-```
+File: `src/db/repositories/user-repository.ts`
 
-### Get User Deployments
-```typescript
-const deployments = await deploymentService.getUserDeployments(userId);
-```
+- create user
+- find by id/clerk/email/polar
+- update user fields
 
-### Check for Pending Duplicate
-```typescript
-const existing = await deploymentService.findPendingDuplicate(
-  userId,
-  'claude-opus-4.5',
-  'telegram',
-  'bot_token_here'
-);
+### Deployment repository
 
-if (existing) {
-  // Reuse existing payment link
-  const session = await stripeService.getSession(existing.stripeSessionId);
-}
-```
+File: `src/db/repositories/deployment-repository.ts`
 
-### Update Deployment Status
-```typescript
-await deploymentService.updateDeploymentStatus(
-  deploymentId,
-  'active',
-  {
-    akashDeploymentId: dseq,
-    akashLeaseId: leaseId,
-    providerUrl: url,
-  }
-);
-```
+- create deployment
+- lookup by id/stripe/polar
+- find by user
+- find pending duplicates
+- update status and deployment details
 
-## Testing
+### Provider blacklist repository
+
+File: `src/db/repositories/blacklist-repository.ts`
+
+- add/remove/list blacklisted providers
+- supports exclusion logic in Akash deployment selection
+
+## Migration workflow
 
 ```bash
-bun test __tests__/database.test.ts
-bun test __tests__/user-service.test.ts
+npm run db:generate
+npm run db:migrate
 ```
 
-## Files
+## Notes
 
-- `schema.ts` - Drizzle ORM schema definitions
-- `repositories/` - Data access layer
-  - `deployment-repository.ts` - Deployment queries
-  - `user-repository.ts` - User queries
-- `migrations/` - SQL migration files
-- `README.md` - This file
-
+- Keep secrets out of migrations and source control.
+- `channel_token` and related sensitive fields should only be read through service/repository paths that enforce encryption boundaries.

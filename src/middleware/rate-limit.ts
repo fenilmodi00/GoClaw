@@ -43,6 +43,7 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
 
 // In-memory fallback
 const memoryStore = new Map<string, number[]>();
+const storeLock = new Map<string, boolean>();
 
 /**
  * Check if a request should be allowed under the rate limit.
@@ -91,30 +92,39 @@ export async function rateLimit(
         }
     }
 
-    // 2. Fallback to In-Memory
-    const now = Date.now();
-    const windowStart = now - windowMs;
-
-    const timestamps = (memoryStore.get(key) || []).filter((t) => t > windowStart);
-
-    if (timestamps.length >= limit) {
-        const oldestInWindow = timestamps[0];
-        const resetMs = oldestInWindow + windowMs - now;
-        return {
-            success: false,
-            remaining: 0,
-            limit,
-            resetMs,
-        };
+    // 2. Fallback to In-Memory (with simple locking for thread safety)
+    while (storeLock.get(key)) {
+        await new Promise(resolve => setTimeout(resolve, 1));
     }
+    storeLock.set(key, true);
 
-    timestamps.push(now);
-    memoryStore.set(key, timestamps);
+    try {
+        const now = Date.now();
+        const windowStart = now - windowMs;
 
-    return {
-        success: true,
-        remaining: limit - timestamps.length,
-        limit,
-        resetMs: windowMs,
-    };
+        const timestamps = (memoryStore.get(key) || []).filter((t) => t > windowStart);
+
+        if (timestamps.length >= limit) {
+            const oldestInWindow = timestamps[0];
+            const resetMs = oldestInWindow + windowMs - now;
+            return {
+                success: false,
+                remaining: 0,
+                limit,
+                resetMs,
+            };
+        }
+
+        timestamps.push(now);
+        memoryStore.set(key, timestamps);
+
+        return {
+            success: true,
+            remaining: limit - timestamps.length,
+            limit,
+            resetMs: windowMs,
+        };
+    } finally {
+        storeLock.delete(key);
+    }
 }

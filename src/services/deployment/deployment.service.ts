@@ -1,13 +1,8 @@
 import { getDeploymentRepository, type CreateDeploymentInput, type UpdateDeploymentStatusInput, type DeploymentStatus } from '@/db/repositories/deployment-repository';
 import type { Deployment } from '@/db/schema';
 import { cacheService } from '../cache/cache.service';
-
-/**
- * DeploymentService - Business logic layer for deployment management
- * 
- * Handles deployment creation, status updates, and queries.
- * Uses DeploymentRepository for data access.
- */
+import { inngest, deploymentEvents } from '@/lib/inngest/client';
+import { config } from '@/config';
 
 export class DeploymentService {
   private deploymentRepository;
@@ -16,86 +11,67 @@ export class DeploymentService {
     this.deploymentRepository = getDeploymentRepository();
   }
 
-  /**
-   * Creates a new deployment
-   */
   async createDeployment(input: CreateDeploymentInput): Promise<Deployment> {
     const clawApiKey = crypto.randomUUID();
     const deployment = await this.deploymentRepository.create({ ...input, clawApiKey });
 
-    // Invalidate cache
-    await cacheService.delete(`deployments:${input.userId}`);
+    try {
+      await cacheService.delete(`deployments:${input.userId}`);
+    } catch (err) {
+      console.warn('Failed to invalidate deployment cache:', err);
+    }
 
     return deployment;
   }
 
-  /**
-   * Triggers the actual Akash deployment process
-   */
   async deploy(deployment: Deployment): Promise<void> {
-    // 1. Update status to deploying
     await this.updateDeploymentStatus(deployment.id, 'deploying');
 
     try {
-      // 2. Call Akash Service
-      // We need to fetch the user's plan or default to some deposit amount
-      // For now using default $5
-      const result = await import('../akash/akash.service').then(m => m.akashService.deployBot({
-        akashApiKey: process.env.AKASH_API_KEY!, // Master wallet key for now
-        telegramBotToken: deployment.channelToken,
-        gatewayToken: deployment.clawApiKey || undefined, // Use generated unique key
-        modelId: deployment.model,
-      }));
-
-      // 3. Update status to active
-      await this.updateDeploymentStatus(deployment.id, 'active', {
-        akashDeploymentId: result.dseq,
-        providerUrl: result.serviceUrl || undefined,
+      await inngest.send({
+        name: deploymentEvents.DEPLOYMENT_STARTED,
+        data: {
+          deploymentId: deployment.id,
+          channelToken: deployment.channelToken,
+          gatewayToken: undefined,
+        },
       });
-
     } catch (error) {
-      console.error('Deployment failed:', error);
-      const err = error as Error;
-      // 4. Update status to failed
+      console.error('Failed to trigger deployment job:', error);
       await this.updateDeploymentStatus(deployment.id, 'failed', {
-        errorMessage: err.message
+        errorMessage: error instanceof Error ? error.message : 'Failed to start deployment job',
       });
       throw error;
     }
   }
 
-  /**
-   * Finds deployment by ID
-   */
   async getDeploymentById(id: string): Promise<Deployment | null> {
     return this.deploymentRepository.findById(id);
   }
 
-
-
-  /**
-   * Gets all deployments for a user
-   */
   async getUserDeployments(userId: string): Promise<Deployment[]> {
     const cacheKey = `deployments:${userId}`;
-    const cached = await cacheService.get<Deployment[]>(cacheKey);
 
-    if (cached) {
-      return cached;
+    try {
+      const cached = await cacheService.get<Deployment[]>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    } catch (err) {
+      console.warn('Cache read failed, falling back to database:', err);
     }
 
     const deployments = await this.deploymentRepository.findByUserId(userId);
 
-    // Cache for 30 seconds
-    await cacheService.set(cacheKey, deployments, 30);
+    try {
+      await cacheService.set(cacheKey, deployments, config.cache.deploymentTtlSeconds);
+    } catch (err) {
+      console.warn('Failed to cache deployments:', err);
+    }
 
     return deployments;
   }
 
-  /**
-   * Checks if user has a pending deployment with same configuration
-   * Returns the existing deployment if found, allowing payment link reuse
-   */
   async findPendingDuplicate(
     userId: string,
     model: string,
@@ -110,9 +86,6 @@ export class DeploymentService {
     );
   }
 
-  /**
-   * Updates deployment status
-   */
   async updateDeploymentStatus(
     id: string,
     status: DeploymentStatus,
@@ -122,10 +95,13 @@ export class DeploymentService {
 
     const deployment = await this.getDeploymentById(id);
     if (deployment) {
-      await cacheService.delete(`deployments:${deployment.userId}`);
+      try {
+        await cacheService.delete(`deployments:${deployment.userId}`);
+      } catch (err) {
+        console.warn('Failed to invalidate deployment cache:', err);
+      }
     }
   }
 }
 
-// Singleton instance
 export const deploymentService = new DeploymentService();

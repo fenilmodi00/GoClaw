@@ -2,26 +2,29 @@ export interface SDLTemplateParams {
   akashmlApiKey: string;
   safeBotToken: string;
   safeGatewayToken: string;
-  modelId: string;
 }
 
 export const generateSDLTemplate = (params: SDLTemplateParams): string => {
-  const { akashmlApiKey, safeBotToken, safeGatewayToken, modelId } = params;
+  const { akashmlApiKey, safeBotToken, safeGatewayToken } = params;
 
   return `version: "2.0"
 
 services:
   openclaw:
-    image: ghcr.io/fenilmodi00/openclaw-docker:0.0.4
+    image: ghcr.io/fenilmodi00/openclaw-docker:main-0a3827a
     expose:
       - port: 18789
         as: 80
         to:
           - global: true
+      - port: 18790
+        as: 8080
+        to:
+          - global: true
     env:
       - HOME=/home/node
       - TERM=xterm-256color
-      - MODEL_ID=${modelId}
+      - MODEL_ID=MiniMaxAI/MiniMax-M2.5
       - BASE_URL=https://api.akashml.com/v1
       - API_KEY=${akashmlApiKey}
       - API_PROTOCOL=openai-completions
@@ -31,10 +34,9 @@ services:
       - OPENCLAW_GATEWAY_TOKEN=${safeGatewayToken}
       - OPENCLAW_GATEWAY_BIND=lan
       - OPENCLAW_GATEWAY_PORT=18789
+      - OPENCLAW_BRIDGE_PORT=18790
       - TELEGRAM_BOT_TOKEN=${safeBotToken}
       - TELEGRAM_ENABLED=true
-      - TELEGRAM_DM_POLICY=open
-      - TELEGRAM_ALLOW_FROM=*
     params:
       storage:
         openclaw-data:

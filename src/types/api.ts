@@ -28,7 +28,7 @@ export const ClerkWebhookSchema = v.object({
 export const CheckoutSchema = v.object({
   model: v.pipe(
     v.string(),
-    v.picklist(['MiniMaxAI/MiniMax-M2.5', 'meta-llama/Llama-3.2-3B-Instruct', 'google/gemma-3-4b-it'], 'Invalid model selection')
+    v.picklist(['minimax-m2.5', 'gpt-3.2', 'gemini-3-flash'], 'Invalid model selection')
   ),
   channel: v.pipe(
     v.string(),

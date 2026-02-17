@@ -111,6 +111,10 @@ export const deployments = sqliteTable(
     idIdx: index('id_idx').on(table.id),
     // Index on user_id for efficient user deployment queries
     userIdIdx: index('user_id_idx').on(table.userId),
+    // Index on status for filtering by deployment status
+    statusIdx: index('deployment_status_idx').on(table.status),
+    // Composite index for user + status queries (e.g., get user's active deployments)
+    userStatusIdx: index('user_status_idx').on(table.userId, table.status),
   })
 );
 
