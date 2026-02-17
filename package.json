@@ -14,6 +14,19 @@
     "test": "vitest",
     "test:ui": "vitest --ui"
   },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "packageManager": "bun@1.1.0",
+  "overrides": {
+    "valibot": "^1.0.0",
+    "@tanstack/valibot-form-adapter": "^1.0.0",
+    "@tanstack/react-form": "^1.0.0",
+    "@tanstack/react-store": {
+      "react": "^19.0.0",
+      "react-dom": "^19.0.0"
+    }
+  },
   "dependencies": {
     "@clerk/nextjs": "^6.37.3",
     "@libsql/client": "^0.14.0",
@@ -25,8 +38,8 @@
     "@radix-ui/react-toast": "^1.2.15",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@radix-ui/react-visually-hidden": "^1.2.4",
-    "@tanstack/react-form": "^0.37.0",
-    "@tanstack/valibot-form-adapter": "^0.42.1",
+    "@tanstack/react-form": "^1.0.0",
+    "@tanstack/valibot-form-adapter": "^1.0.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.2",
     "@vercel/analytics": "^1.6.1",
@@ -47,7 +60,7 @@
     "svix": "^1.84.1",
     "tailwind-merge": "^2.5.5",
     "uuid": "^13.0.0",
-    "valibot": "^0.42.1"
+    "valibot": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
