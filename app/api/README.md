@@ -124,8 +124,23 @@ Returns:
 - `200` with `{ received: true }`
 - `401/500` on verification or processing failures
 
+### `GET|POST|PUT /api/inngest`
+
+File: `src/app/api/inngest/route.ts`
+
+Purpose:
+
+- Exposes the Inngest serve handler for registered background functions
+- Registers deployment background function from `src/lib/inngest/deployment.job.ts`
+- Receives deployment lifecycle events emitted by the app
+
+Returns:
+
+- Handled by Inngest SDK runtime (health checks, function registration, and event invocation responses)
+
 ## Schemas and validation
 
 - Request schema definitions: `src/types/api.ts`
 - Pricing/tier mapping: `src/config/pricing.ts`
 - Token/rate limiting helpers: `src/middleware/token-throttle.ts`, `src/middleware/rate-limit.ts`
+- Background jobs: `src/lib/inngest/client.ts`, `src/lib/inngest/deployment.job.ts`

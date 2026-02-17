@@ -29,6 +29,16 @@ GoClaw is a Next.js 15 SaaS app for launching AI bots on Akash with a hosted UI,
 5. Deployment status updates are persisted and shown in dashboard/status pages.
 6. Chat traffic can flow through `POST /api/chat` with credit and token controls.
 
+## Recent changes
+
+- Deployment execution now runs asynchronously through Inngest background jobs to avoid long-running request timeouts.
+- Deployment lifecycle events are now event-driven (`deployment/started`, `deployment/completed`, `deployment/failed`).
+- Added Inngest client/config modules and a deployment job function.
+- Added an Inngest route handler at `src/app/api/inngest/route.ts` to serve Inngest functions.
+- Added Inngest environment variables in `.env.example`:
+  - `INNGEST_SIGNING_KEY`
+  - `INNGEST_EVENT_KEY`
+
 See also:
 
 - `app/README.md` for route map (pages + API)
@@ -129,6 +139,12 @@ For route-by-route docs, use:
 
 - `app/README.md`
 - `app/api/README.md`
+
+For background jobs, use:
+
+- `src/lib/inngest/client.ts`
+- `src/lib/inngest/deployment.job.ts`
+- `src/app/api/inngest/route.ts`
 
 ## Testing and CI
 

@@ -28,7 +28,7 @@ This directory contains the Next.js App Router surface: public pages, authentica
 
 ## API routes
 
-All API route handlers live in `app/api/**/route.ts`.
+Most API route handlers live in `app/api/**/route.ts`.
 
 - `app/api/checkout/route.ts` - validates deployment request and creates Polar checkout
 - `app/api/deployments/route.ts` - returns current user's deployments
@@ -37,6 +37,7 @@ All API route handlers live in `app/api/**/route.ts`.
 - `app/api/user/balance/route.ts` - returns current user balance and credit limit
 - `app/api/webhooks/clerk/route.ts` - Clerk webhook handler (`user.created`)
 - `app/api/webhooks/polar/route.ts` - Polar webhook handler and deployment trigger logic
+- `src/app/api/inngest/route.ts` - Inngest function serve endpoint for async jobs
 
 See `app/api/README.md` for request/response details.
 

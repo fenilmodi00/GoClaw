@@ -18,7 +18,7 @@ This folder contains application logic used by routes and UI.
 - `src/services/akash/akash.service.ts`
   - Akash deployment orchestration (SDL generation, bids, lease creation, retries, provider filtering)
 - `src/services/deployment/deployment.service.ts`
-  - deployment lifecycle management and status transitions
+  - deployment lifecycle management, status transitions, and async job event triggering via Inngest
 - `src/services/user/user.service.ts`
   - user lookup/create/linking between Clerk and Polar
 - `src/services/polar/polar.service.ts`
@@ -47,6 +47,22 @@ See `src/db/README.md` for details.
 - `src/lib/errors.ts` - custom error classes and shared codes
 - `src/lib/billing.ts` - credit/balance calculations
 - `src/lib/akash-utils.ts` - Akash-specific helper guards and types
+
+## Background jobs (Inngest)
+
+- `src/lib/inngest/client.ts`
+  - Inngest client initialization and deployment event names
+- `src/lib/inngest/deployment.job.ts`
+  - background function that executes Akash deployment workflow and updates deployment status
+- `src/app/api/inngest/route.ts`
+  - Next.js handler that serves the Inngest function endpoint
+
+Deployment flow after payment:
+
+1. Payment webhook marks deployment ready and calls deployment service.
+2. `DeploymentService.deploy()` emits `deployment/started`.
+3. Inngest function performs deployment steps and updates status.
+4. Function emits completed/failed events for observability and downstream workflows.
 
 ## Validation and contracts
 
