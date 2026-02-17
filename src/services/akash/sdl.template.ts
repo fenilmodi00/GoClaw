@@ -11,14 +11,10 @@ export const generateSDLTemplate = (params: SDLTemplateParams): string => {
 
 services:
   openclaw:
-    image: ghcr.io/fenilmodi00/openclaw-docker:main-0a3827a
+    image: ghcr.io/fenilmodi00/openclaw-docker:0.0.4
     expose:
       - port: 18789
         as: 80
-        to:
-          - global: true
-      - port: 18790
-        as: 8080
         to:
           - global: true
     env:
@@ -34,12 +30,13 @@ services:
       - OPENCLAW_GATEWAY_TOKEN=${safeGatewayToken}
       - OPENCLAW_GATEWAY_BIND=lan
       - OPENCLAW_GATEWAY_PORT=18789
-      - OPENCLAW_BRIDGE_PORT=18790
       - TELEGRAM_BOT_TOKEN=${safeBotToken}
       - TELEGRAM_ENABLED=true
+      - TELEGRAM_DM_POLICY=open
+      - TELEGRAM_ALLOW_FROM=*
     params:
       storage:
-        openclaw-data:
+        data:
           mount: /home/node/.openclaw
           readOnly: false
 
@@ -53,7 +50,7 @@ profiles:
           size: 3Gi
         storage:
           - size: 2Gi
-          - name: openclaw-data
+          - name: data
             size: 10Gi
             attributes:
               persistent: true

@@ -15,7 +15,9 @@ describe('AkashService', () => {
 
             expect(sdl).toContain('TELEGRAM_BOT_TOKEN=123456:ABC-DEF');
             expect(sdl).toContain('OPENCLAW_GATEWAY_TOKEN=test-gateway-token');
-            expect(sdl).toContain('image: ghcr.io/fenilmodi00/openclaw-docker:main-0a3827a');
+            expect(sdl).toContain('image: ghcr.io/fenilmodi00/openclaw-docker:0.0.4');
+            expect(sdl).toContain('TELEGRAM_DM_POLICY=open');
+            expect(sdl).toContain('TELEGRAM_ALLOW_FROM=*');
         });
 
         it('should escape special characters in tokens', () => {

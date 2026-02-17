@@ -27,6 +27,7 @@ export interface DeploymentParams {
  */
 export interface DeploymentResult {
   dseq: string;
+  leaseId: string;
   provider: string;
   serviceUrl: string | null;
 }
@@ -147,10 +148,10 @@ export interface AkashLeaseResponse {
  * for deploying an OpenClaw bot with Telegram integration.
  * 
  * The SDL defines:
- * - Container image (ghcr.io/fenilmodi00/openclaw-docker:main-0a3827a)
+ * - Container image (ghcr.io/fenilmodi00/openclaw-docker:0.0.4)
  * - Environment variables for AkashML API and Telegram bot
  * - Model: MiniMaxAI/MiniMax-M2.5 via AkashML
- * - Two exposed ports: 18789 (gateway) and 18790 (bridge)
+ * - One exposed port: 18789 (gateway)
  * - Resource requirements (1 CPU, 2GB memory, 1GB ephemeral + 5GB persistent storage)
  * - Persistent storage for OpenClaw workspace
  * - Pricing in IBC token
@@ -162,7 +163,7 @@ export interface AkashLeaseResponse {
  * ```typescript
  * const sdl = generateSDL({
  *   telegramBotToken: '123456:ABC-DEF...',
- *   gatewayToken: '2002'
+ *   gatewayToken: '2000'
  * });
  * ```
  */
@@ -258,7 +259,7 @@ export class AkashService {
    * interpolates sensitive tokens and configuration values into the YAML template.
    */
   generateSDL(params: { telegramBotToken: string; gatewayToken?: string }): string {
-    const { telegramBotToken, gatewayToken = '2002' } = params;
+    const { telegramBotToken, gatewayToken = '2000' } = params;
 
     // Get AkashML API key from environment
     const akashmlApiKey = process.env.AKASHML_KEY || '';
@@ -758,6 +759,8 @@ export class AkashService {
   async deployBot(params: DeploymentParams): Promise<DeploymentResult> {
     const { akashApiKey, telegramBotToken, gatewayToken, depositUsd = MIN_DEPOSIT_USD } = params;
 
+    let dseq: string | undefined;
+
     try {
       // Step 1: Ensure valid certificate exists
       console.log('Ensuring valid certificate exists...');
@@ -766,13 +769,14 @@ export class AkashService {
       // Step 2: Generate SDL
       const sdl = this.generateSDL({
         telegramBotToken,
-        gatewayToken: gatewayToken || '2002'
+        gatewayToken: gatewayToken || '2000'
       });
 
       // Step 3: Create deployment
       console.log('Creating deployment on Akash...');
       const deploymentResponse = await this.createDeployment(sdl, akashApiKey, depositUsd);
-      const { dseq, manifest } = deploymentResponse.data;
+      dseq = deploymentResponse.data.dseq;
+      const { manifest } = deploymentResponse.data;
       console.log(`Deployment created with dseq: ${dseq}`);
 
       // Step 4: Poll for bids
@@ -802,11 +806,18 @@ export class AkashService {
 
       // Step 6: Extract service URL
       const serviceUrl = this.extractServiceUrl(leaseResponse);
+      const lease = leaseResponse.data.leases[0];
+      const leaseId = `${lease.id.owner}/${lease.id.dseq}/${lease.id.gseq}/${lease.id.oseq}/${lease.id.provider}`;
       console.log(`Deployment successful! Provider: ${provider}, Service URL: ${serviceUrl}`);
 
-      return { dseq, provider, serviceUrl };
+      return { dseq, leaseId, provider, serviceUrl };
     } catch (error) {
       console.error('Deployment failed:', error);
+      
+      if (dseq) {
+        (error as Error & { dseq?: string }).dseq = dseq;
+      }
+      
       throw error;
     }
   }

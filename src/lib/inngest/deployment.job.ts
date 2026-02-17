@@ -8,13 +8,27 @@ interface DeploymentJobData {
   deploymentId: string;
   channelToken: string;
   gatewayToken?: string;
+  attempt?: number;
+  failedDseqs?: string[];
 }
+
+type DeploymentSuccessResult = {
+  dseq: string;
+  leaseId: string;
+  provider: string;
+  serviceUrl: string | null;
+};
+
+type DeploymentStepResult = 
+  | { success: true; result: DeploymentSuccessResult }
+  | { success: false; error: string; dseq?: string };
 
 async function updateDeploymentStatus(
   deploymentId: string,
   status: 'pending' | 'deploying' | 'active' | 'failed',
   details?: {
     akashDeploymentId?: string;
+    akashLeaseId?: string;
     providerUrl?: string;
     errorMessage?: string;
   }
@@ -33,6 +47,9 @@ export const deploymentJob = inngest.createFunction(
   { event: deploymentEvents.DEPLOYMENT_STARTED },
   async ({ event, step }) => {
     const { deploymentId, channelToken, gatewayToken } = event.data as DeploymentJobData;
+    const attempt = (event.data as DeploymentJobData).attempt ?? 1;
+    const failedDseqs = (event.data as DeploymentJobData).failedDseqs ?? [];
+    const MAX_ATTEMPTS = 3;
     
     try {
       const akashApiKey = config.akash.apiKey;
@@ -44,29 +61,60 @@ export const deploymentJob = inngest.createFunction(
         await updateDeploymentStatus(deploymentId, 'deploying');
       });
 
-      await step.run('deploy-bot', async () => {
-        const result = await akashService.deployBot({
-          akashApiKey,
-          telegramBotToken: channelToken,
-          gatewayToken,
-        });
-        
-        return result;
+      console.log(`Starting Akash deployment attempt ${attempt}/${MAX_ATTEMPTS}`);
+
+      let deploymentResult: DeploymentSuccessResult | null = null;
+      
+      const deploymentResultStep: DeploymentStepResult = await step.run('deploy-bot', async () => {
+        try {
+          const result = await akashService.deployBot({
+            akashApiKey,
+            telegramBotToken: channelToken,
+            gatewayToken,
+          });
+          
+          return { success: true as const, result };
+        } catch (error) {
+          const err = error as Error & { dseq?: string };
+          return { 
+            success: false as const, 
+            error: err.message,
+            dseq: (err as Error & { dseq?: string }).dseq 
+          };
+        }
       });
 
-      await step.run('update-status-active', async () => {
-        const deployment = await getDeploymentRepository().findById(deploymentId);
-        if (!deployment) {
-          throw new Error(`Deployment ${deploymentId} not found`);
+      if (!deploymentResultStep.success) {
+        const err = new Error(deploymentResultStep.error) as Error & { dseq?: string };
+        if (deploymentResultStep.dseq) {
+          err.dseq = deploymentResultStep.dseq;
         }
-        
-        const repo = getDeploymentRepository();
-        await repo.updateStatus(deploymentId, 'active', {
-          akashDeploymentId: deployment.akashDeploymentId || undefined,
-          providerUrl: deployment.providerUrl || undefined,
+        throw err;
+      }
+
+      deploymentResult = deploymentResultStep.result;
+
+      const cleanupDseqs = [...new Set(failedDseqs)].filter((dseq) => dseq !== deploymentResult!.dseq);
+      if (cleanupDseqs.length > 0) {
+        await step.run('cleanup-failed-deployments', async () => {
+          for (const dseq of cleanupDseqs) {
+            try {
+              console.log(`Cleaning up failed deployment: ${dseq}`);
+              await akashService.closeDeployment(dseq, akashApiKey);
+              console.log(`Successfully closed failed deployment: ${dseq}`);
+            } catch (cleanupError) {
+              console.warn(`Failed to close failed deployment ${dseq}:`, cleanupError);
+            }
+          }
         });
-        
-        await cacheService.delete(`deployments:${deployment.userId}`);
+      }
+
+      await step.run('update-status-active', async () => {
+        await updateDeploymentStatus(deploymentId, 'active', {
+          akashDeploymentId: deploymentResult!.dseq,
+          akashLeaseId: deploymentResult!.leaseId,
+          providerUrl: deploymentResult!.serviceUrl || deploymentResult!.provider,
+        });
       });
 
       await step.run('send-completed-event', async () => {
@@ -81,11 +129,39 @@ export const deploymentJob = inngest.createFunction(
 
       return { success: true, deploymentId };
     } catch (error) {
-      const err = error as Error;
-      
+      const err = error as Error & { dseq?: string };
+
+      const nextFailedDseqs = [...failedDseqs];
+      if (err.dseq) {
+        nextFailedDseqs.push(err.dseq);
+      }
+
+      if (attempt < MAX_ATTEMPTS) {
+        await step.run('update-status-retrying', async () => {
+          await updateDeploymentStatus(deploymentId, 'deploying', {
+            errorMessage: `Attempt ${attempt} failed: ${err.message}`,
+          });
+        });
+
+        await step.run('schedule-retry', async () => {
+          await inngest.send({
+            name: deploymentEvents.DEPLOYMENT_STARTED,
+            data: {
+              deploymentId,
+              channelToken,
+              gatewayToken,
+              attempt: attempt + 1,
+              failedDseqs: [...new Set(nextFailedDseqs)],
+            },
+          });
+        });
+
+        return { success: false, deploymentId, scheduledRetry: true };
+      }
+
       await step.run('update-status-failed', async () => {
         await updateDeploymentStatus(deploymentId, 'failed', {
-          errorMessage: err.message,
+          errorMessage: `All ${MAX_ATTEMPTS} attempts failed: ${err.message}`,
         });
       });
 
@@ -99,7 +175,7 @@ export const deploymentJob = inngest.createFunction(
         });
       });
 
-      throw error;
+      return { success: false, deploymentId, scheduledRetry: false };
     }
   }
 );
