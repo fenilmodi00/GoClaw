@@ -43,7 +43,8 @@ export class DeploymentService {
       const result = await import('../akash/akash.service').then(m => m.akashService.deployBot({
         akashApiKey: process.env.AKASH_API_KEY!, // Master wallet key for now
         telegramBotToken: deployment.channelToken,
-        gatewayToken: undefined, // Default
+        gatewayToken: deployment.clawApiKey || undefined, // Use generated unique key
+        modelId: deployment.model,
       }));
 
       // 3. Update status to active

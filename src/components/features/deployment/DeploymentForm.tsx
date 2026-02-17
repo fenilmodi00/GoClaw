@@ -8,7 +8,7 @@ import { useUser, GoogleOneTap } from "@clerk/nextjs";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
-import { ModelSelector } from "./ModelSelector";
+import { ModelSelector, AI_MODELS } from "./ModelSelector";
 import { ChannelSelector } from "./ChannelSelector";
 import { UserProfile } from "./UserProfile";
 import { TelegramConnectDialog } from "../telegram/TelegramConnectDialog";
@@ -25,7 +25,7 @@ import {
 const DeploymentFormSchema = v.object({
   model: v.pipe(
     v.string(),
-    v.picklist(["minimax-m2.5", "gpt-3.2", "gemini-3-flash"], "Please select an AI model for your bot")
+    v.picklist(AI_MODELS.map(m => m.id), "Please select an AI model for your bot")
   ),
   channel: v.pipe(
     v.string(),
@@ -56,7 +56,7 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
 
   const form = useForm({
     defaultValues: {
-      model: "" as "minimax-m2.5" | "gpt-3.2" | "gemini-3-flash" | "",
+      model: "" as typeof AI_MODELS[number]["id"] | "",
       channel: "" as "telegram" | "discord" | "whatsapp" | "",
       channelToken: "",
       tier: "" as "starter" | "pro" | "business" | "",
@@ -150,8 +150,8 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
             validators={{
               onChange: v.pipe(
                 v.string(),
-              v.picklist(
-                  ["minimax-m2.5", "gpt-3.2", "gemini-3-flash"],
+                v.picklist(
+                  AI_MODELS.map(m => m.id),
                   "Please select a valid AI model"
                 )
               ),
@@ -161,7 +161,7 @@ export function DeploymentForm({ onSubmit }: DeploymentFormProps) {
               <ModelSelector
                 value={field.state.value}
                 onChange={(value) =>
-                  field.handleChange(value as "minimax-m2.5" | "gpt-3.2" | "gemini-3-flash")
+                  field.handleChange(value as typeof AI_MODELS[number]["id"])
                 }
                 error={field.state.meta.errors[0] || undefined}
               />

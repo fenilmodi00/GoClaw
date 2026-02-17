@@ -9,6 +9,7 @@ import { getProviderBlacklistRepository } from '@/db/repositories/blacklist-repo
 export interface SDLParams {
   telegramBotToken: string;
   gatewayToken?: string;
+  modelId?: string;
 }
 
 /**
@@ -18,6 +19,7 @@ export interface DeploymentParams {
   akashApiKey: string;
   telegramBotToken: string;
   gatewayToken?: string;
+  modelId?: string;
   depositUsd?: number;
 }
 
@@ -146,11 +148,11 @@ export interface AkashLeaseResponse {
  * for deploying an OpenClaw bot with Telegram integration.
  * 
  * The SDL defines:
- * - Container image (ghcr.io/fenilmodi00/openclaw-docker:main-0a3827a)
+ * - Container image (ghcr.io/fenilmodi00/openclaw-docker:0.0.4)
  * - Environment variables for AkashML API and Telegram bot
- * - Model: MiniMaxAI/MiniMax-M2.5 via AkashML
- * - Two exposed ports: 18789 (gateway) and 18790 (bridge)
- * - Resource requirements (1 CPU, 2GB memory, 1GB ephemeral + 5GB persistent storage)
+ * - Model: Dynamic selection via AkashML
+ * - Exposed port: 18789 (gateway)
+ * - Resource requirements (1.5 CPU, 3GB memory, 2GB ephemeral + 10GB persistent storage)
  * - Persistent storage for OpenClaw workspace
  * - Pricing in IBC token
  * 
@@ -228,8 +230,8 @@ export class AkashService {
    * Generates the SDL (Stack Definition Language) configuration for Akash deployment.
    * interpolates sensitive tokens and configuration values into the YAML template.
    */
-  generateSDL(params: { telegramBotToken: string; gatewayToken?: string }): string {
-    const { telegramBotToken, gatewayToken = '2002' } = params;
+  generateSDL(params: SDLParams): string {
+    const { telegramBotToken, gatewayToken = '2002', modelId = 'MiniMaxAI/MiniMax-M2.5' } = params;
 
     // Get AkashML API key from environment
     const akashmlApiKey = process.env.AKASHML_KEY || '';
@@ -245,6 +247,7 @@ export class AkashService {
       akashmlApiKey,
       safeBotToken,
       safeGatewayToken,
+      modelId,
     });
   }
 
@@ -633,7 +636,7 @@ export class AkashService {
    * Orchestrates the full deployment flow with robust error handling
    */
   async deployBot(params: DeploymentParams): Promise<DeploymentResult> {
-    const { akashApiKey, telegramBotToken, gatewayToken, depositUsd = MIN_DEPOSIT_USD } = params;
+    const { akashApiKey, telegramBotToken, gatewayToken, modelId, depositUsd = MIN_DEPOSIT_USD } = params;
 
     try {
       // Step 1: Ensure valid certificate exists
@@ -643,7 +646,8 @@ export class AkashService {
       // Step 2: Generate SDL
       const sdl = this.generateSDL({
         telegramBotToken,
-        gatewayToken: gatewayToken || '2002'
+        gatewayToken: gatewayToken || '2002',
+        modelId
       });
 
       // Step 3: Create deployment
