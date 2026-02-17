@@ -250,6 +250,37 @@ async function withRetry<T>(
 }
 
 /**
+ * Deployment item returned by Akash list deployments endpoint
+ */
+export interface AkashDeploymentListItem {
+  deployment: {
+    id: { owner: string; dseq: string };
+    state: string;
+    hash: string;
+    created_at: string;
+  };
+  leases: {
+    id: BidID;
+    state: string;
+    status: LeaseStatus | null;
+  }[];
+}
+
+/**
+ * Response from Akash list deployments endpoint
+ */
+export interface AkashListDeploymentsResponse {
+  data: {
+    deployments: AkashDeploymentListItem[];
+    pagination: {
+      total: number;
+      skip: number;
+      limit: number;
+    };
+  };
+}
+
+/**
  * AkashService handles all logic related to interacting with the Akash Network,
  * including SDL generation, deployment creation, bid polling, and lease management.
  */
@@ -623,6 +654,84 @@ export class AkashService {
   }
 
   /**
+   * Lists deployments for the authenticated Akash user
+   */
+  async listDeployments(apiKey: string, skip: number = 0, limit: number = 50): Promise<AkashListDeploymentsResponse | null> {
+    try {
+      const response = await fetch(`${AKASH_CONSOLE_API_BASE}/v1/deployments?skip=${skip}&limit=${limit}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn(`Failed to list deployments (${response.status}): ${errorText.substring(0, 200)}`);
+        return null;
+      }
+
+      return await response.json() as AkashListDeploymentsResponse;
+    } catch (error) {
+      console.warn('Error listing deployments:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Closes active deployments that have no accessible service URL, excluding the current deployment
+   */
+  async closeZombieDeployments(apiKey: string, currentDseq: string): Promise<{ closed: string[]; failed: string[] }> {
+    const closed: string[] = [];
+    const failed: string[] = [];
+
+    const listResponse = await this.listDeployments(apiKey, 0, 200);
+    if (!listResponse?.data?.deployments?.length) {
+      return { closed, failed };
+    }
+
+    for (const item of listResponse.data.deployments) {
+      const dseq = item.deployment.id.dseq;
+      if (dseq === currentDseq) {
+        continue;
+      }
+
+      if (item.deployment.state !== 'active') {
+        continue;
+      }
+
+      const hasServiceUrl = item.leases.some((lease) => {
+        if (!lease.status) {
+          return false;
+        }
+
+        for (const serviceName in lease.status.services) {
+          const uris = lease.status.services[serviceName].uris;
+          if (uris?.length) {
+            return true;
+          }
+        }
+
+        return false;
+      });
+
+      if (hasServiceUrl) {
+        continue;
+      }
+
+      try {
+        await this.closeDeployment(dseq, apiKey);
+        closed.push(dseq);
+      } catch (error) {
+        const err = error as Error;
+        failed.push(`${dseq}: ${err.message}`);
+      }
+    }
+
+    return { closed, failed };
+  }
+
+  /**
    * Sorts bids by price (cheapest first)
    */
   sortBidsByPrice(bidResponses: BidResponse[]): BidResponse[] {
@@ -815,6 +924,14 @@ export class AkashService {
       console.error('Deployment failed:', error);
       
       if (dseq) {
+        try {
+          console.log(`Attempting cleanup for failed deployment dseq: ${dseq}`);
+          await this.closeDeployment(dseq, akashApiKey);
+          console.log(`Cleanup succeeded for failed deployment dseq: ${dseq}`);
+        } catch (cleanupError) {
+          console.warn(`Failed to cleanup deployment dseq ${dseq}:`, cleanupError);
+        }
+
         (error as Error & { dseq?: string }).dseq = dseq;
       }
       
@@ -840,6 +957,8 @@ export const checkProviderHealth = (providerUri: string) => akashService.checkPr
 export const getProviderDetails = (providerAddress: string, apiKey: string) => akashService.getProviderDetails(providerAddress, apiKey);
 export const ensureCertificate = (apiKey: string) => akashService.ensureCertificate(apiKey);
 export const getDeploymentDetails = (dseq: string, apiKey: string) => akashService.getDeploymentDetails(dseq, apiKey);
+export const listDeployments = (apiKey: string, skip?: number, limit?: number) => akashService.listDeployments(apiKey, skip, limit);
+export const closeZombieDeployments = (apiKey: string, currentDseq: string) => akashService.closeZombieDeployments(apiKey, currentDseq);
 export const tryAllBidsUntilSuccess = (manifest: string, dseq: string, bids: BidResponse[], apiKey: string) => 
   akashService.tryAllBidsUntilSuccess(manifest, dseq, bids, apiKey);
 export const filterBlacklistedBids = (bids: BidResponse[]) => akashService.filterBlacklistedBids(bids);

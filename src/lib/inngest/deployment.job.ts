@@ -109,6 +109,16 @@ export const deploymentJob = inngest.createFunction(
         });
       }
 
+      await step.run('cleanup-zombie-deployments', async () => {
+        const zombieCleanup = await akashService.closeZombieDeployments(akashApiKey, deploymentResult!.dseq);
+        if (zombieCleanup.closed.length > 0) {
+          console.log(`Closed ${zombieCleanup.closed.length} zombie deployment(s): ${zombieCleanup.closed.join(', ')}`);
+        }
+        if (zombieCleanup.failed.length > 0) {
+          console.warn(`Failed to close ${zombieCleanup.failed.length} zombie deployment(s): ${zombieCleanup.failed.join(' | ')}`);
+        }
+      });
+
       await step.run('update-status-active', async () => {
         await updateDeploymentStatus(deploymentId, 'active', {
           akashDeploymentId: deploymentResult!.dseq,
